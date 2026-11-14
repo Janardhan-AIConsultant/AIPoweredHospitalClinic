@@ -1,0 +1,33 @@
+name: Notification drain
+
+# Vercel Cron on the Hobby plan runs once a day at most, so GitHub Actions provides the frequent
+# trigger. GitHub schedules are best-effort (often delayed by several minutes) and are paused after
+# 60 days without repository activity. On Vercel Pro the vercel.json cron can run every minute instead.
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: notifications-drain
+  cancel-in-progress: false
+
+jobs:
+  drain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Call the drain endpoint
+        env:
+          API_URL: ${{ vars.API_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$API_URL" ] || [ -z "$CRON_SECRET" ]; then
+            echo "API_URL variable or CRON_SECRET secret not set; skipping."
+            exit 0
+          fi
+          curl -fsS --max-time 90 --retry 2 --retry-delay 5 -X POST \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$API_URL/internal/cron/notifications"

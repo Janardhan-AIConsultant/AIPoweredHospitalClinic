@@ -1,0 +1,55 @@
+# Local PostgreSQL for development and integration tests (real PG is required
+# for the btree_gist exclusion constraint and concurrency tests).
+#
+#   docker compose up -d postgres            # database only (day-to-day development)
+#   docker compose --profile full up --build # database + migrations + API + web (production-like check)
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: clinic
+      POSTGRES_PASSWORD: clinic_dev_only
+      POSTGRES_DB: clinic
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U clinic -d clinic"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  migrate:
+    profiles: [full]
+    build: ./backend
+    command: alembic upgrade head
+    environment: &api_env
+      APP_ENV: local
+      DATABASE_URL: postgresql://clinic:clinic_dev_only@postgres:5432/clinic
+      FRONTEND_URL: http://localhost:3000
+      # Local-only demo secrets. Never reuse them outside docker compose.
+      JWT_SECRET_KEY: compose-only-jwt-secret-change-me-0123456789abcdef
+      FIELD_ENCRYPTION_KEY: Y29tcG9zZS1vbmx5LWZlcm5ldC1rZXktMDEyMzQ1NiE=
+      PHONE_HASH_KEY: compose-only-phone-hash-key
+      CRON_SECRET: compose-only-cron-secret
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  api:
+    profiles: [full]
+    build: ./backend
+    environment: *api_env
+    ports: ["8000:8000"]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+
+  web:
+    profiles: [full]
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8000
+    ports: ["3000:3000"]
+    depends_on: [api]
+
+volumes:
+  pgdata:
