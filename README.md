@@ -299,10 +299,10 @@ Full runbook: **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** (topology, every envi
 
 - **Docker:** `backend/Dockerfile` (Python 3.12, non-root, health check) and `frontend/Dockerfile` (Next.js standalone, non-root). `docker compose --profile full up --build` starts PostgreSQL, applies migrations, then the API (`:8000`) and the web app (`:3000`).
 - **CI (`.github/workflows/ci.yml`):** backend lint + format + mypy + tests on PostgreSQL (coverage gate 85%) + migration drift/reversibility (`alembic check`, downgrade, upgrade) + `pip-audit`; frontend lint, types, unit tests, build, `npm audit`; Playwright end-to-end in two modes (direct, and same-origin `/api` proxy).
-- **CD (`.github/workflows/deploy.yml`):** after CI on `main` (with an optional manual approval): migrate Neon, deploy API, deploy web, smoke test.
+- **Deployment:** both Vercel projects are connected to this repository and deploy production on every push to `main` (branch previews are skipped). `.github/workflows/deploy.yml` is a manual release workflow (migrate Neon, deploy API, deploy web, smoke test) for when you want the ordered release or a migration.
 - **Notifications trigger:** Vercel Cron (daily, the Hobby limit) plus a GitHub Actions schedule every 5 minutes. In production the drain refuses to run with the mock WhatsApp sender, so queued messages are never marked sent without being sent.
 - **Recommended topology:** two Vercel projects, with the browser reaching the API through the web app's `/api` rewrite so the refresh cookie is first-party (`AUTH_COOKIE_PATH=/api/auth`, `AUTH_COOKIE_SAMESITE=lax`).
-- **Nothing has been deployed.** The workflows have never run on GitHub and the Vercel configuration has not been exercised against a real Vercel account.
+- **Deployed:** the API and web app run on Vercel (production), sharing one Neon database. CI runs on every pull request and on `main`; keep merging only green pull requests because Vercel does not wait for CI.
 
 ## Retention, embeddings and the privacy page (Phase 15)
 
