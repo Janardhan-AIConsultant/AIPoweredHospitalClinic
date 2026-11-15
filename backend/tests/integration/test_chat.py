@@ -215,7 +215,15 @@ async def test_tool_registry_rejects_bad_arguments(env):
             ]
         )
         assert tools.proposal_token is None
-        assert len(tools.schemas()) == 5
+        # the assistant gets exactly these read-only tools (booking is only ever *proposed*)
+        assert {t["function"]["name"] for t in tools.schemas()} == {
+            "list_specializations",
+            "find_doctors",
+            "get_available_slots",
+            "next_available_dates",
+            "propose_booking",
+            "clinic_info",
+        }
 
 
 async def test_clinic_info_answers_from_knowledge_base_and_stays_safe(env):
