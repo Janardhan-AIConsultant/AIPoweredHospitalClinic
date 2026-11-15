@@ -5,7 +5,9 @@ from __future__ import annotations
 import re
 from typing import Any
 
-_PHONE_RE = re.compile(r"(?<!\d)(\+?\d[\d\s\-]{7,}\d)(?!\d)")
+# An ISO date alternative comes first so "2026-11-16" (10 digit/hyphen characters) is never mistaken
+# for a phone number; the regex engine tries alternatives left to right at each position.
+_PHONE_RE = re.compile(r"(?<!\d)(?:(?P<date>\d{4}-\d{2}-\d{2})(?!\d)|(?P<phone>\+?\d[\d\s\-]{7,}\d)(?!\d))")
 _EMAIL_RE = re.compile(r"([A-Za-z0-9._%+-])[A-Za-z0-9._%+-]*@([A-Za-z0-9.-]+\.[A-Za-z]{2,})")
 _SECRET_KEYS = {"password", "token", "secret", "authorization", "api_key", "otp", "access_token"}
 
@@ -20,7 +22,7 @@ def mask_phone(phone: str) -> str:
 
 def mask_text(text: str) -> str:
     """Mask phone numbers and e-mail addresses inside free text."""
-    text = _PHONE_RE.sub(lambda m: mask_phone(m.group(1)), text)
+    text = _PHONE_RE.sub(lambda m: m.group("date") or mask_phone(m.group("phone")), text)
     return _EMAIL_RE.sub(lambda m: f"{m.group(1)}***@{m.group(2)}", text)
 
 

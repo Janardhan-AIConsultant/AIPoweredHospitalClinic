@@ -41,7 +41,7 @@ async def readiness(settings: Settings = Depends(get_settings)) -> dict[str, Any
         "database": db,
         "integrations": {
             "llm": settings.llm_mode,
-            "chroma": settings.chroma_mode,
+            "pinecone": settings.pinecone_mode,
             "whatsapp": settings.whatsapp_mode,
         },
     }

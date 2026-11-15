@@ -5,7 +5,7 @@ Grok-powered appointment chatbot (backend-controlled tools), WhatsApp confirmati
 through a transactional outbox. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 **Status:** all 15 build phases are complete and verified locally (241 backend tests, 62 frontend tests, 27 browser
-end-to-end tests in two modes). Every external integration (xAI/Grok, ChromaDB + embeddings, WhatsApp Cloud API) runs in
+end-to-end tests in two modes). Every external integration (xAI/Grok, Pinecone + embeddings, WhatsApp Cloud API) runs in
 **MOCK** mode until credentials are set; `GET /health/ready` reports the active mode of each. **Nothing has been deployed and
 no live integration has been exercised**: read [docs/READINESS.md](docs/READINESS.md) (blockers, risks, first-live
 verification plan) before going to production.
@@ -64,6 +64,10 @@ See [docs/DATABASE_DESIGN.md](docs/DATABASE_DESIGN.md).
 
 Concurrency: booking locks the doctor row (`SELECT ... FOR UPDATE`), recomputes slots under the lock, and relies on the
 `ex_appointments_no_overlap` constraint as the final guarantee. Deadlocks/overlaps surface as `409 slot_unavailable`.
+Booking references are `<appointment date>-<counter>` (for example `20261212-0001`): the counter starts at 0001 for each
+date and is allocated inside the booking transaction under a per-date advisory lock, so numbers never repeat or clash.
+Cancelled appointments keep their number; a rescheduled appointment gets the next number of its new date. Older random
+references keep working for lookups.
 Cancel/reschedule exist at service level; their public endpoints arrive with OTP patient verification.
 
 ## Frontend (Phase 6)
@@ -90,8 +94,9 @@ user text -> input guardrails (emergency > injection > medical, deterministic, n
           -> output guard (prompt-leak canary, links, dosage-like text) -> reply (+ signed booking proposal)
 ```
 
-- **Mock by default.** With no `XAI_API_KEY` + `XAI_MODEL` the deterministic `MockLLM` runs (same tool protocol).
-- **Live Grok via LangChain.** Set `XAI_API_KEY` and `XAI_MODEL` (e.g. a current Grok model name from your xAI console) in `backend/.env`; `GrokLLM` uses `langchain-xai` (`ChatXAI`). It is tested with a fake chat model only and has not yet been run against the real API; `/health/ready` shows `llm: live` once both are set.
+- **Mock by default.** With no `GROQ_API_KEY` + `GROQ_MODEL` (or `XAI_API_KEY` + `XAI_MODEL`) the deterministic `MockLLM` runs (same tool protocol).
+- **Live Groq (preferred) or Grok via LangChain.** Set `GROQ_API_KEY` and `GROQ_MODEL` (e.g. `openai/gpt-oss-120b`) in `backend/.env`; `GroqLLM` uses Groq's OpenAI-compatible endpoint through `langchain-openai`. Groq wins when both providers are configured.
+- **Grok via LangChain (alternative).** Set `XAI_API_KEY` and `XAI_MODEL` (e.g. a current Grok model name from your xAI console) in `backend/.env`; `GrokLLM` uses `langchain-xai` (`ChatXAI`). It is tested with a fake chat model only and has not yet been run against the real API; `/health/ready` shows `llm: live` once both are set.
   `/health/ready` reports `llm: mock|live`. The Grok adapter (`app/ai/llm.py`) is unit-tested against a fake transport only
   and has **not** been run against the real xAI API yet.
 - **The model cannot book.** `propose_booking` only returns a signed, 10-minute proposal. The UI posts it with the patient's own
@@ -103,8 +108,8 @@ user text -> input guardrails (emergency > injection > medical, deterministic, n
 
 - The chatbot has a read-only `clinic_info` tool that retrieves passages from `backend/knowledge/*.md` (hours, address, booking and cancellation policy, fees, privacy, FAQs). **The current content is placeholder text: replace it with the clinic's real details before launch.**
 - Pipeline: markdown → section chunks (`app/rag/chunking.py`) → embeddings → vector store → top-3 passages above a similarity threshold. Passages are treated as data; the system prompt forbids following instructions inside them, and the output guard still applies to replies.
-- **Mock mode (default, no `CHROMA_URL`)**: deterministic hashing embedder + in-memory store built from `knowledge/` at first use. Lexical matching only.
-- **Live mode (`CHROMA_URL` set)**: Hugging Face embeddings (`HUGGINGFACE_MODEL`) + `ChromaVectorStore`. Install the optional `chromadb` and `sentence-transformers` packages, then run `python -m app.rag.ingest` to populate the collection (never done at request time). The Chroma and HF adapters are tested against fakes only and have **not** been run against a real Chroma server or model.
+- **Mock mode (default, no `PINECONE_API_KEY`)**: deterministic hashing embedder + in-memory store built from `knowledge/` at first use. Lexical matching only.
+- **Live mode (`PINECONE_API_KEY` set)**: Pinecone-hosted embeddings (`PINECONE_EMBED_MODEL=llama-text-embed-v2`, 1024 dimensions, same API key) + `PineconeVectorStore` (serverless, cosine). Run `python -m app.rag.ingest` to create the index if missing (`PINECONE_INDEX_NAME`, `PINECONE_CLOUD`/`PINECONE_REGION`) and load `knowledge/` (never done at request time). The Pinecone adapters are unit-tested against fakes; see READINESS for live status. Re-run ingestion whenever `knowledge/` changes.
 
 ## WhatsApp notifications (Phase 9)
 
@@ -171,7 +176,7 @@ Roles: `ADMIN` and `DOCTOR` (patients use OTP, see Phase 10). Migration `0003` a
 - The rate limiter is per instance, and the client IP comes from `X-Forwarded-For`, which is only trustworthy behind Vercel's proxy.
 - Accessibility was checked automatically in light mode on five pages; automated checks cover only part of WCAG, and dark mode, screen readers and keyboard-only use were not tested manually.
 - Only Chromium, desktop viewport. The cross-site cookie (`SameSite=None; Secure`) cannot be tested on `localhost`; the e2e run proves the same-site flow.
-- Real Grok, Chroma, WhatsApp Cloud and Neon-with-new-migrations remain unverified.
+- Real Groq/Grok, Pinecone, WhatsApp Cloud and Neon-with-new-migrations remain unverified.
 
 ## Containers, CI/CD and deployment (Phase 14)
 
@@ -187,5 +192,5 @@ Full runbook: **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** (topology, every envi
 ## Retention, embeddings and the privacy page (Phase 15)
 
 - `POST|GET /internal/cron/notifications` now also purges expired OTP challenges (1 day), refresh tokens (7 days after expiry / 30 after revocation) and finished outbox rows (90 days). Appointments, patients and audit logs are never purged automatically.
-- Live RAG embeds through the Hugging Face **Inference API** when `HUGGINGFACE_API_TOKEN` is set (no torch in the serverless bundle); the local `sentence-transformers` embedder is only for offline ingestion. Neither has been run against the real service, and `chromadb-client` still has to be added to `requirements.txt` when Chroma goes live.
+- Live RAG embeds through Pinecone's hosted inference (`llama-text-embed-v2`), so no torch or second vendor is needed in the serverless bundle.
 - `/privacy` is a **draft** that describes what the system actually does; the clinic must complete and legally review it.

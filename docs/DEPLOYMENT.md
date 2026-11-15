@@ -9,7 +9,7 @@ Browser ──► Vercel project "web"  (Next.js, frontend/)
               │  /api/*  rewrite (same origin, first-party cookie)
               ▼
             Vercel project "api"  (FastAPI, backend/)  ──► Neon PostgreSQL
-              ▲                                           ──► xAI / Chroma / WhatsApp Cloud (when configured)
+              ▲                                           ──► Groq / Pinecone / WhatsApp Cloud (when configured)
  GitHub Actions cron (every 5 min) ─┘   Meta ──► /webhooks/whatsapp
 ```
 
@@ -34,8 +34,8 @@ Two independent Vercel projects, each with its own **Root Directory** (`backend`
    | api | `PHONE_HASH_KEY` | any long random string — **never change it afterwards**, patient lookups would break |
    | api | `CRON_SECRET` | random string; Vercel Cron sends it as `Authorization: Bearer …` |
    | api | `AUTH_COOKIE_PATH` / `AUTH_COOKIE_SAMESITE` | `/api/auth` / `lax` (same-origin proxy mode) |
-   | api | `XAI_API_KEY`, `XAI_MODEL` | when you have them (otherwise the mock assistant runs) |
-   | api | `CHROMA_URL`, `CHROMA_AUTH_TOKEN`, … | optional |
+   | api | `GROQ_API_KEY`, `GROQ_MODEL` (or `XAI_API_KEY`, `XAI_MODEL`) | when you have them (otherwise the mock assistant runs) |
+   | api | `PINECONE_API_KEY`, `PINECONE_INDEX_NAME`, `PINECONE_INDEX_HOST` | optional |
    | api | `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_VERIFY_TOKEN`, `WHATSAPP_APP_SECRET` | when approved (without them messages stay `PENDING`, see below) |
    | web | `NEXT_PUBLIC_API_URL` | `/api` |
    | web | `API_PROXY_TARGET` | `https://<api domain>` |
@@ -92,7 +92,7 @@ The compose file uses throw-away secrets that are only valid for this local stac
 | Vercel build/deploy of either project, the Python entrypoint detection, `includeFiles` for `knowledge/`, cron registration | **unverified** (needs your Vercel account) |
 | Client IP seen by the API behind the web project's rewrite (rate limiting keys on `X-Forwarded-For`) | **unverified**: check once deployed that distinct visitors are not collapsed into one IP; if they are, rate limits need a different key |
 | Neon production database is at migration 0001; 0002 (OTP) and 0003 (refresh tokens) are not applied there yet | **pending** (the Deploy workflow applies them) |
-| xAI, Chroma, WhatsApp Cloud, Meta template approval | **unverified** |
+| Groq/xAI, Pinecone, WhatsApp Cloud, Meta template approval | **unverified** |
 
 ## Troubleshooting
 

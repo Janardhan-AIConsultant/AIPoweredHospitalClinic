@@ -38,9 +38,9 @@ export default function PrivacyPage() {
         one-time verification code to your number on WhatsApp.
       </p>
 
-      <h2 className={H2}>The chat assistant</h2>
+      <h2 className={H2}>Mitra, the chat assistant</h2>
       <p>
-        The assistant helps you find a doctor and prepare a booking. It cannot give medical advice, and it cannot
+        Mitra helps you find a doctor and prepare a booking. It cannot give medical advice, and it cannot
         confirm a booking by itself: you enter your details in a separate form that goes straight to the clinic.
         Phone numbers and email addresses typed into the chat are masked before the message is processed by the
         AI service. Chat messages are not stored by the clinic. Please do not share health details in the chat.

@@ -1,6 +1,5 @@
 import json
 from datetime import date
-from types import SimpleNamespace
 
 import pytest
 
@@ -9,7 +8,7 @@ from app.core.config import Settings
 from app.rag.chunking import MAX_CHUNK_CHARS, chunk_markdown, load_knowledge
 from app.rag.embeddings import HashingEmbedder
 from app.rag.retriever import KNOWLEDGE_DIR, ClinicInfoRetriever, build_retriever
-from app.rag.store import ChromaVectorStore, InMemoryVectorStore
+from app.rag.store import InMemoryVectorStore, PineconeVectorStore
 
 
 def make() -> ClinicInfoRetriever:
@@ -77,66 +76,77 @@ def test_hashing_embedder_is_deterministic_and_normalised():
     assert sum(e.embed(["the of and"])[0]) == 0  # only stop words -> zero vector, no crash
 
 
-def test_build_retriever_is_mock_without_chroma_and_cached():
+def test_build_retriever_is_mock_without_pinecone_and_cached():
     s = Settings(_env_file=None)
-    assert s.chroma_mode == "mock"
+    assert s.pinecone_mode == "mock"
     assert build_retriever(s) is build_retriever(s)
 
 
-# ------------------------------------------------------- chroma (fake client)
-class FakeCollection:
+# ------------------------------------------------------ pinecone (fake client)
+class FakeIndex:
     def __init__(self):
+        self.rows: dict[str, dict] = {}
+        self.delete_calls = 0
+
+    def delete(self, delete_all, namespace):
+        assert delete_all is True and namespace == "ns"
+        self.delete_calls += 1
         self.rows = {}
 
-    def upsert(self, ids, documents, embeddings, metadatas):
-        for i, d, e, m in zip(ids, documents, embeddings, metadatas, strict=True):
-            self.rows[i] = (d, e, m)
+    def upsert(self, vectors, namespace):
+        assert namespace == "ns" and len(vectors) <= 100
+        for v in vectors:
+            self.rows[v["id"]] = v
 
-    def query(self, query_embeddings, n_results):
-        items = list(self.rows.items())[:n_results]
-        return {
-            "ids": [[i for i, _ in items]],
-            "documents": [[v[0] for _, v in items]],
-            "metadatas": [[v[2] for _, v in items]],
-            "distances": [[0.25 for _ in items]],
-        }
+    def query(self, vector, top_k, namespace, include_metadata):
+        assert include_metadata and namespace == "ns"
+        return {"matches": [{"id": i, "score": 0.75, "metadata": v["metadata"]} for i, v in list(self.rows.items())[:top_k]]}
 
-    def count(self):
-        return len(self.rows)
+    def describe_index_stats(self):
+        return {"namespaces": {"ns": {"vector_count": len(self.rows)}} if self.rows else {}}
 
 
-class FakeClient:
-    def __init__(self):
-        self.col = FakeCollection()
-        self.deleted = 0
-
-    def get_or_create_collection(self, name, metadata=None):
-        assert metadata == {"hnsw:space": "cosine"}
-        return self.col
-
-    def delete_collection(self, name):
-        self.deleted += 1
-        self.col = FakeCollection()
-
-
-def test_chroma_store_adapter_maps_to_and_from_chroma():
-    client = FakeClient()
-    r = ClinicInfoRetriever(HashingEmbedder(), ChromaVectorStore(client))
+def test_pinecone_store_adapter_maps_to_and_from_pinecone():
+    index = FakeIndex()
+    r = ClinicInfoRetriever(HashingEmbedder(), PineconeVectorStore(index, "ns"))
     n = r.ingest()
-    assert n > 0 and client.deleted == 1 and r.store.count() == n
+    assert n > 0 and index.delete_calls == 1 and r.store.count() == n
     hit = r.search("opening hours")
-    assert hit and hit[0]["source"] and hit[0]["text"]  # distance 0.25 -> score 0.75 passes the threshold
+    assert hit and hit[0]["source"] and hit[0]["text"]  # score 0.75 passes the threshold
 
 
-def test_chroma_from_settings_requires_chromadb_when_missing():
-    s = SimpleNamespace(chroma_url="https://x", chroma_auth_token=SimpleNamespace(get_secret_value=lambda: ""))
-    try:
-        import chromadb  # noqa: F401
-    except ImportError:
-        import pytest
+def test_pinecone_upserts_in_batches_of_100():
+    from app.rag.chunking import Chunk
 
-        with pytest.raises(ImportError):
-            ChromaVectorStore.from_settings(s)
+    index = FakeIndex()
+    store = PineconeVectorStore(index, "ns")
+    chunks = [Chunk(f"c{i}", "t", "s.md", "T") for i in range(250)]
+    store.add(chunks, [[0.0] * 3 for _ in chunks])
+    assert store.count() == 250
+
+
+def test_pinecone_reset_tolerates_a_missing_namespace_but_not_other_errors():
+    import pytest
+
+    class Missing(FakeIndex):
+        def delete(self, delete_all, namespace):
+            raise RuntimeError("Namespace not found")
+
+    PineconeVectorStore(Missing(), "ns").reset()
+
+    class Broken(FakeIndex):
+        def delete(self, delete_all, namespace):
+            raise RuntimeError("401 unauthorized")
+
+    with pytest.raises(RuntimeError):
+        PineconeVectorStore(Broken(), "ns").reset()
+
+
+def test_pinecone_from_settings_builds_a_real_client_without_network():
+    s = Settings(_env_file=None, pinecone_api_key="pc-secret", pinecone_index_host="https://idx.svc.pinecone.io")
+    assert s.pinecone_mode == "live"
+    store = PineconeVectorStore.from_settings(s)  # lazy: must not touch the network until first use
+    assert store._resolved is None
 
 
 # --------------------------------------------------------------- mock LLM hook
@@ -156,53 +166,69 @@ async def test_mock_llm_routes_info_questions_and_answers_from_passages():
     assert book.tool_calls[0].name == "find_doctors"
 
 
-# ------------------------------------------------------- HF Inference embedder
-def test_hf_inference_embedder_request_and_pooling():
-    import httpx
+# ------------------------------------------------------- Pinecone embedder
+class FakeInference:
+    def __init__(self, fail: bool = False, short: bool = False):
+        self.calls: list[dict] = []
+        self.fail, self.short = fail, short
 
-    from app.rag.embeddings import HFInferenceEmbedder
-
-    seen = {}
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        seen["url"], seen["auth"] = str(request.url), request.headers["authorization"]
-        seen["body"] = __import__("json").loads(request.content)
-        # one sentence vector, one token-level matrix
-        return httpx.Response(200, json=[[3.0, 4.0], [[1.0, 0.0], [3.0, 0.0]]])
-
-    emb = HFInferenceEmbedder("org/model", "hf-secret", transport=httpx.MockTransport(handler))
-    a, b = emb.embed(["x", "y"])
-    assert seen["url"].endswith("/models/org/model/pipeline/feature-extraction")
-    assert seen["auth"] == "Bearer hf-secret" and seen["body"]["inputs"] == ["x", "y"]
-    assert a == pytest.approx([0.6, 0.8]) and b == pytest.approx([1.0, 0.0])  # normalised / mean-pooled
+    def embed(self, model, inputs, parameters):
+        if self.fail:
+            raise RuntimeError("401 pc-secret rejected")
+        self.calls.append({"model": model, "inputs": list(inputs), "parameters": dict(parameters)})
+        n = len(inputs) - (1 if self.short else 0)
+        return [{"values": [3.0, 4.0]} for _ in range(n)]
 
 
-def test_hf_inference_embedder_hides_errors():
-    import httpx
+class FakeClient:
+    def __init__(self, **kw):
+        self.inference = FakeInference(**kw)
 
+
+def test_pinecone_embedder_uses_passage_and_query_types_and_normalises():
+    from app.rag.embeddings import PineconeEmbedder
+
+    c = FakeClient()
+    emb = PineconeEmbedder("llama-text-embed-v2", c, 1024)
+    assert emb.embed(["a", "b"]) == [pytest.approx([0.6, 0.8])] * 2
+    assert emb.embed_query("q") == pytest.approx([0.6, 0.8])
+    assert c.inference.calls[0]["parameters"] == {"input_type": "passage", "truncate": "END", "dimension": 1024}
+    assert c.inference.calls[1]["parameters"]["input_type"] == "query"
+
+
+def test_pinecone_embedder_batches_in_96s():
+    from app.rag.embeddings import PineconeEmbedder
+
+    c = FakeClient()
+    PineconeEmbedder("m", c).embed([str(i) for i in range(200)])
+    assert [len(x["inputs"]) for x in c.inference.calls] == [96, 96, 8]
+
+
+def test_pinecone_embedder_hides_errors():
     from app.core.exceptions import ExternalServiceError
-    from app.rag.embeddings import HFInferenceEmbedder
+    from app.rag.embeddings import PineconeEmbedder
 
-    for resp in (
-        httpx.Response(401, text="hf-secret rejected"),
-        httpx.Response(200, json={"error": "x"}),
-        httpx.Response(200, json=[[1.0]]),
-    ):
-        emb = HFInferenceEmbedder("m", "hf-secret", transport=httpx.MockTransport(lambda r, resp=resp: resp))
+    for client in (FakeClient(fail=True), FakeClient(short=True)):
         with pytest.raises(ExternalServiceError) as e:
-            emb.embed(["a", "b"])
-        assert "hf-secret" not in str(e.value)
+            PineconeEmbedder("m", client).embed(["a", "b"])
+        assert "pc-secret" not in str(e.value)
 
 
-def test_retriever_prefers_inference_api_when_a_token_is_set(monkeypatch):
+def test_retriever_uses_the_pinecone_embedder_and_query_input_type(monkeypatch):
     from app.rag import retriever
-    from app.rag.embeddings import HFInferenceEmbedder
+    from app.rag.embeddings import PineconeEmbedder
 
     class FakeStore:
         @classmethod
         def from_settings(cls, settings):
             return InMemoryVectorStore()
 
-    monkeypatch.setattr("app.rag.store.ChromaVectorStore", FakeStore)
-    s = Settings(_env_file=None, chroma_url="https://c", huggingface_api_token="hf-x")
-    assert isinstance(retriever.build_retriever(s).embedder, HFInferenceEmbedder)
+    monkeypatch.setattr("app.rag.store.PineconeVectorStore", FakeStore)
+    s = Settings(_env_file=None, pinecone_api_key="pc-x")
+    r = retriever.build_retriever(s)
+    assert isinstance(r.embedder, PineconeEmbedder) and s.pinecone_embed_dimension == 1024
+    c = FakeClient()
+    r.embedder._client = c
+    r.store.add([__import__("app.rag.chunking", fromlist=["Chunk"]).Chunk("1", "t", "s.md", "T")], [[0.6, 0.8]])
+    r.search("hours")
+    assert c.inference.calls[-1]["parameters"]["input_type"] == "query"

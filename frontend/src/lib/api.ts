@@ -8,6 +8,7 @@ import type {
   ChatConfirmRequest,
   ChatMessage,
   ChatResponse,
+  SlotsOffer,
   Doctor,
   Leave,
   LoginResponse,
@@ -118,11 +119,11 @@ export const createAppointment = (body: BookingRequest, idempotencyKey: string) 
     body: JSON.stringify(body),
   });
 
-export const sendChat = (messages: ChatMessage[]) =>
+export const sendChat = (messages: ChatMessage[], context: SlotsOffer | null = null) =>
   request<ChatResponse>("/chat", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ messages }),
+    body: JSON.stringify(context ? { messages, context } : { messages }),
   });
 
 export const confirmChatBooking = (body: ChatConfirmRequest) =>

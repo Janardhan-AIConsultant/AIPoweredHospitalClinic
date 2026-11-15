@@ -57,7 +57,7 @@ const SLOTS = {
 };
 
 const APPOINTMENT = {
-  appointment_reference: "ABCDE23456",
+  appointment_reference: "20300107-0001",
   doctor_id: "d1",
   doctor_name: "Dr. Rahul Reddy",
   specialization: "Cardiologist",
@@ -81,6 +81,7 @@ async function pickSlotAndFill(user: ReturnType<typeof userEvent.setup>) {
   await user.click(await screen.findByRole("button", { name: "9:00 AM" }));
   await user.type(screen.getByLabelText("Patient name"), "Asha Rao");
   await user.type(screen.getByLabelText("Mobile number"), "9876543210");
+  await user.click(screen.getByLabelText("No, thanks"));
 }
 
 describe("validation helpers", () => {
@@ -90,9 +91,9 @@ describe("validation helpers", () => {
       phone: "123",
       email: "nope",
       reason: "",
-      consent: false,
+      consent: null,
     });
-    expect(Object.keys(bad).sort()).toEqual(["email", "patient_name", "phone"]);
+    expect(Object.keys(bad).sort()).toEqual(["consent", "email", "patient_name", "phone"]);
     expect(
       validateForm({
         patient_name: "Asha",
@@ -102,6 +103,14 @@ describe("validation helpers", () => {
         consent: true,
       }),
     ).toEqual({});
+  });
+
+  it("treats an explicit No as a valid answer and never opts in by default", () => {
+    const base = { patient_name: "Asha", phone: "9876543210", email: "", reason: "" };
+    expect(validateForm({ ...base, consent: false })).toEqual({});
+    const slot = { start_time: "09:00:00", end_time: "09:30:00" };
+    expect(buildPayload("d1", "2030-01-07", slot, { ...base, consent: false }).notification_consent).toBe(false);
+    expect(buildPayload("d1", "2030-01-07", slot, { ...base, consent: null }).notification_consent).toBe(false);
   });
 
   it("builds a trimmed payload with HH:MM time", () => {
@@ -134,9 +143,10 @@ describe("BookingFlow", () => {
 
     await user.type(screen.getByLabelText("Patient name"), "Asha Rao");
     await user.type(screen.getByLabelText("Mobile number"), "9876543210");
+    await user.click(screen.getByLabelText("No, thanks"));
     await user.click(screen.getByRole("button", { name: "Confirm appointment" }));
 
-    expect(await screen.findByText("ABCDE23456")).toBeInTheDocument();
+    expect(await screen.findByText("20300107-0001")).toBeInTheDocument();
     expect(screen.getByText("Appointment confirmed")).toBeInTheDocument();
     const [payload, key] = api.createAppointment.mock.calls[0];
     expect(payload).toMatchObject({ doctor_id: "d1", start_time: "09:00", phone: "9876543210" });
@@ -156,7 +166,7 @@ describe("BookingFlow", () => {
     await user.click(screen.getByRole("button", { name: "Confirm appointment" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("down");
     await user.click(screen.getByRole("button", { name: "Confirm appointment" }));
-    await screen.findByText("ABCDE23456");
+    await screen.findByText("20300107-0001");
     expect(api.createAppointment.mock.calls[0][1]).toBe(api.createAppointment.mock.calls[1][1]);
   });
 
@@ -173,7 +183,7 @@ describe("BookingFlow", () => {
     await screen.findByRole("alert");
     await user.type(screen.getByLabelText("Patient name"), " K");
     await user.click(screen.getByRole("button", { name: "Confirm appointment" }));
-    await screen.findByText("ABCDE23456");
+    await screen.findByText("20300107-0001");
     expect(api.createAppointment.mock.calls[0][1]).not.toBe(api.createAppointment.mock.calls[1][1]);
   });
 

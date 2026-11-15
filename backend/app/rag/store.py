@@ -1,10 +1,9 @@
-"""Vector stores: in-memory (mock) and ChromaDB (live, optional dependency, unverified)."""
+"""Vector stores: in-memory (mock) and Pinecone (live; tested against a fake client only)."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Any, Protocol
-from urllib.parse import urlparse
 
 from app.rag.chunking import Chunk
 
@@ -40,51 +39,74 @@ class InMemoryVectorStore:
         return len(self._items)
 
 
-class ChromaVectorStore:
-    """Chroma collection with cosine space. Requires ``chromadb`` and a reachable server."""
+class PineconeVectorStore:
+    """Pinecone serverless index (cosine). Vectors carry their text in metadata, so no second store is needed.
 
-    NAME = "clinic_knowledge"
+    Query time only needs ``PINECONE_API_KEY``; the index is created (if missing) by the offline
+    ``python -m app.rag.ingest`` via :meth:`ensure_index`, never by a patient request.
+    """
 
-    def __init__(self, client: Any) -> None:
-        self._client = client
-        self._col = client.get_or_create_collection(self.NAME, metadata={"hnsw:space": "cosine"})
+    def __init__(self, index: Any, namespace: str) -> None:
+        # ``index`` may be a zero-argument callable so the index is only opened on first use:
+        # the ingest CLI must be able to create a missing index *before* anything opens it.
+        self._index_or_factory = index
+        self._resolved: Any | None = None
+        self._ns = namespace
+
+    @property
+    def _index(self) -> Any:
+        if self._resolved is None:
+            f = self._index_or_factory
+            self._resolved = f() if callable(f) and not hasattr(f, "query") else f
+        return self._resolved
 
     @classmethod
-    def from_settings(cls, settings: Any) -> ChromaVectorStore:
-        import chromadb  # type: ignore[import-not-found,unused-ignore]
+    def from_settings(cls, settings: Any) -> PineconeVectorStore:
+        from pinecone import Pinecone  # type: ignore[import-not-found,unused-ignore]
 
-        url = urlparse(settings.chroma_url)
-        token = settings.chroma_auth_token.get_secret_value()
-        client = chromadb.HttpClient(
-            host=url.hostname,
-            port=url.port or (443 if url.scheme == "https" else 80),
-            ssl=url.scheme == "https",
-            headers={"Authorization": f"Bearer {token}"} if token else None,
-            tenant=settings.chroma_tenant,
-            database=settings.chroma_database,
-        )
-        return cls(client)
+        pc = Pinecone(api_key=settings.pinecone_api_key.get_secret_value())
+        host = settings.pinecone_index_host
+        name = settings.pinecone_index_name
+        return cls(lambda: pc.Index(host=host) if host else pc.Index(name), settings.pinecone_namespace)
+
+    @staticmethod
+    def ensure_index(settings: Any, dimension: int) -> None:
+        """Create the serverless index when absent and wait until it is ready (ingestion only)."""
+        from pinecone import Pinecone, ServerlessSpec  # type: ignore[import-not-found,unused-ignore]
+
+        pc = Pinecone(api_key=settings.pinecone_api_key.get_secret_value())
+        if not pc.has_index(settings.pinecone_index_name):
+            pc.create_index(
+                name=settings.pinecone_index_name,
+                dimension=dimension,
+                metric="cosine",
+                spec=ServerlessSpec(cloud=settings.pinecone_cloud, region=settings.pinecone_region),
+                timeout=300,  # wait until the index is ready to accept upserts
+            )
 
     def reset(self) -> None:
-        self._client.delete_collection(self.NAME)
-        self._col = self._client.get_or_create_collection(self.NAME, metadata={"hnsw:space": "cosine"})
+        try:
+            self._index.delete(delete_all=True, namespace=self._ns)
+        except Exception as exc:  # noqa: BLE001 - an absent namespace is fine on a first ingest
+            if "not found" not in str(exc).lower() and "404" not in str(exc):
+                raise
 
     def add(self, chunks: list[Chunk], vectors: list[list[float]]) -> None:
-        self._col.upsert(
-            ids=[c.id for c in chunks],
-            documents=[c.text for c in chunks],
-            embeddings=vectors,
-            metadatas=[{"source": c.source, "title": c.title} for c in chunks],
-        )
+        records = [
+            {"id": c.id, "values": v, "metadata": {"text": c.text, "source": c.source, "title": c.title}}
+            for c, v in zip(chunks, vectors, strict=True)
+        ]
+        for i in range(0, len(records), 100):  # stay well inside Pinecone's per-request limits
+            self._index.upsert(vectors=records[i : i + 100], namespace=self._ns)
 
     def query(self, vector: list[float], k: int) -> list[Hit]:
-        res = self._col.query(query_embeddings=[vector], n_results=k)
-        return [
-            Hit(Chunk(i, doc, meta["source"], meta["title"]), 1.0 - float(dist))
-            for i, doc, meta, dist in zip(
-                res["ids"][0], res["documents"][0], res["metadatas"][0], res["distances"][0], strict=True
-            )
-        ]
+        res = self._index.query(vector=vector, top_k=k, namespace=self._ns, include_metadata=True)
+        hits: list[Hit] = []
+        for m in res["matches"]:
+            meta = m["metadata"]
+            hits.append(Hit(Chunk(m["id"], meta["text"], meta["source"], meta["title"]), float(m["score"])))
+        return hits
 
     def count(self) -> int:
-        return int(self._col.count())
+        stats = self._index.describe_index_stats()
+        return int((stats.get("namespaces") or {}).get(self._ns, {}).get("vector_count", 0))

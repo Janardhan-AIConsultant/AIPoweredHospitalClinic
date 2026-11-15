@@ -59,6 +59,7 @@ export interface Appointment {
   status: string;
   patient_name: string;
   reason_for_visit: string | null;
+  notification_consent?: boolean;
 }
 
 export interface ChatMessage {
@@ -79,10 +80,26 @@ export interface Proposal {
   summary: ProposalSummary;
 }
 
+export interface SlotTime {
+  time: string; // HH:MM
+  label: string; // 10:00 AM
+}
+
+/** The open times the patient was last shown. Sent back so a bare "10:00 AM" keeps its doctor and date. */
+export interface SlotsOffer {
+  doctor_id: string;
+  doctor_name: string;
+  date: string;
+  date_label: string;
+  times: SlotTime[];
+}
+
 export interface ChatResponse {
   reply: string;
   guard: "none" | "emergency" | "injection" | "medical";
   proposal: Proposal | null;
+  slots?: SlotsOffer | null;
+  clear_slots?: boolean;
 }
 
 export interface ChatConfirmRequest {

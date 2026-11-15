@@ -23,6 +23,21 @@ const PROPOSAL = {
   },
 };
 
+const CONFIRMED = {
+  appointment_reference: "20300102-0001",
+  doctor_id: "11111111-1111-4111-8111-111111111111",
+  doctor_name: "Dr. Anil Kumar",
+  specialization: "General Physician",
+  appointment_date: "2030-01-02",
+  start_time: "10:00:00",
+  end_time: "10:30:00",
+  consultation_fee: "500.00",
+  status: "CONFIRMED",
+  patient_name: "Asha Rao",
+  reason_for_visit: null,
+  notification_consent: false,
+};
+
 beforeEach(() => {
   api.sendChat.mockReset();
   api.confirmChatBooking.mockReset();
@@ -31,7 +46,7 @@ beforeEach(() => {
 async function openChat() {
   const user = userEvent.setup();
   render(<ChatWidget />);
-  await user.click(screen.getByRole("button", { name: "Chat with us" }));
+  await user.click(screen.getByRole("button", { name: "Chat with Mitra" }));
   return user;
 }
 
@@ -43,10 +58,10 @@ async function ask(user: ReturnType<typeof userEvent.setup>, text: string) {
 describe("ChatWidget", () => {
   it("opens, shows the safety banner and closes", async () => {
     const user = await openChat();
-    expect(screen.getByRole("dialog", { name: "Appointment assistant" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Mitra, appointment assistant" })).toBeInTheDocument();
     expect(screen.getByText(/No medical advice/i)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Close chat" }));
-    expect(screen.getByRole("button", { name: "Chat with us" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Chat with Mitra" })).toBeInTheDocument();
   });
 
   it("sends the conversation and renders the reply", async () => {
@@ -54,7 +69,7 @@ describe("ChatWidget", () => {
     const user = await openChat();
     await ask(user, "which specialties");
     expect(await screen.findByText("We have Cardiologist.")).toBeInTheDocument();
-    expect(api.sendChat).toHaveBeenCalledWith([{ role: "user", content: "which specialties" }]);
+    expect(api.sendChat).toHaveBeenCalledWith([{ role: "user", content: "which specialties" }], null);
 
     api.sendChat.mockResolvedValue({ reply: "Sure.", guard: "none", proposal: null });
     await ask(user, "thanks");
@@ -91,7 +106,7 @@ describe("ChatWidget", () => {
     const user = await openChat();
     await ask(user, "chest pain");
     const bubble = await screen.findByText("Please call 112 now.");
-    expect(bubble.className).toContain("text-danger");
+    expect(bubble.closest('[class*="rounded-2xl"]')?.className).toContain("text-danger");
   });
 
   it("shows friendly errors, including rate limiting", async () => {
@@ -106,12 +121,7 @@ describe("ChatWidget", () => {
 
   it("confirms a proposal with the patient's own details", async () => {
     api.sendChat.mockResolvedValue({ reply: "Prepared.", guard: "none", proposal: PROPOSAL });
-    api.confirmChatBooking.mockResolvedValue({
-      appointment_reference: "ABCDE23456",
-      doctor_name: "Dr. Anil Kumar",
-      appointment_date: "2030-01-02",
-      start_time: "10:00:00",
-    });
+    api.confirmChatBooking.mockResolvedValue(CONFIRMED);
     const user = await openChat();
     await ask(user, "book dr anil");
     const form = await screen.findByRole("form", { name: "Confirm booking" });
@@ -119,13 +129,29 @@ describe("ChatWidget", () => {
 
     await user.click(screen.getByRole("button", { name: "Confirm booking" }));
     expect(await screen.findByText("Enter your full name.")).toBeInTheDocument();
+    expect(screen.getByText("Please choose Yes or No.")).toBeInTheDocument(); // WhatsApp question must be answered
     expect(api.confirmChatBooking).not.toHaveBeenCalled();
 
     await user.type(screen.getByLabelText("Your name"), "Asha Rao");
     await user.type(screen.getByLabelText("Mobile number"), "9876543210");
+    await user.click(screen.getByLabelText("No, thanks"));
     await user.click(screen.getByRole("button", { name: "Confirm booking" }));
 
-    expect(await screen.findByText(/ABCDE23456/)).toBeInTheDocument();
+    // one structured confirmation replaces the "Prepared." message (and the card)
+    const card = await screen.findByRole("region", { name: "Appointment confirmed" });
+    expect(screen.queryByText("Prepared.")).not.toBeInTheDocument();
+    expect(screen.getAllByRole("region", { name: "Appointment confirmed" })).toHaveLength(1);
+    expect(card).toHaveTextContent("20300102-0001"); // the reference starts with the appointment date
+    expect(screen.getByTestId("appointment-reference")).toHaveTextContent(/^20300102-0001$/);
+    expect(card).toHaveTextContent("Dr. Anil Kumar");
+    expect(card).toHaveTextContent("General Physician");
+    expect(card).toHaveTextContent("Wed, 2 Jan 2030");
+    expect(card).toHaveTextContent("10:00 AM – 10:30 AM");
+    expect(card).toHaveTextContent("Asha Rao");
+    expect(card).toHaveTextContent("₹500");
+    expect(card).toHaveTextContent(/WhatsApp updatesNo/);
+    expect(card).toHaveTextContent("arrive 10 minutes early");
+    expect(card.querySelector('a[href="/my-appointments"]')).not.toBeNull();
     expect(api.confirmChatBooking).toHaveBeenCalledWith({
       proposal_token: "signed.proposal.token",
       patient_name: "Asha Rao",
@@ -145,6 +171,7 @@ describe("ChatWidget", () => {
     await screen.findByRole("form", { name: "Confirm booking" });
     await user.type(screen.getByLabelText("Your name"), "Asha Rao");
     await user.type(screen.getByLabelText("Mobile number"), "9876543210");
+    await user.click(screen.getByLabelText("No, thanks"));
     await user.click(screen.getByRole("button", { name: "Confirm booking" }));
     expect(await screen.findByText(/just taken/i)).toBeInTheDocument();
   });
@@ -158,5 +185,122 @@ describe("ChatWidget", () => {
     await ask(user, "never mind");
     await screen.findByText("Anything else?");
     expect(screen.queryByRole("form", { name: "Confirm booking" })).not.toBeInTheDocument();
+  });
+});
+
+
+const OFFER = {
+  doctor_id: "11111111-1111-4111-8111-111111111111",
+  doctor_name: "Dr. Priya Sharma",
+  date: "2030-01-07",
+  date_label: "Mon, 7 Jan 2030",
+  times: [
+    { time: "10:00", label: "10:00 AM" },
+    { time: "16:30", label: "4:30 PM" },
+  ],
+};
+
+describe("ChatWidget: offered times never get lost", () => {
+  it("shows the offered times as buttons and sends the pick together with the doctor and date", async () => {
+    api.sendChat.mockResolvedValueOnce({
+      reply: "Open times for Dr. Priya Sharma.",
+      guard: "none",
+      proposal: null,
+      slots: OFFER,
+      clear_slots: false,
+    });
+    const user = await openChat();
+    await ask(user, "2030-01-07");
+
+    const picker = await screen.findByRole("region", { name: /Open times for Dr\. Priya Sharma on Mon, 7 Jan 2030/ });
+    expect(picker).toHaveTextContent("Dr. Priya Sharma");
+    expect(picker).toHaveTextContent("Mon, 7 Jan 2030");
+
+    api.sendChat.mockResolvedValueOnce({ reply: "Prepared.", guard: "none", proposal: PROPOSAL, slots: null, clear_slots: true });
+    await user.click(screen.getByRole("button", { name: "10:00 AM" }));
+
+    await screen.findByRole("form", { name: "Confirm booking" });
+    const [messages, context] = api.sendChat.mock.calls[1];
+    expect(messages.at(-1)).toEqual({ role: "user", content: "Book 10:00 AM" });
+    expect(context).toEqual(OFFER); // the server knows which doctor and date "10:00 AM" refers to
+    expect(screen.queryByRole("region", { name: /Open times/ })).not.toBeInTheDocument();
+  });
+
+  it("keeps sending the offer when the patient types instead of tapping", async () => {
+    api.sendChat.mockResolvedValueOnce({ reply: "Times.", guard: "none", proposal: null, slots: OFFER });
+    const user = await openChat();
+    await ask(user, "2030-01-07");
+    await screen.findByRole("region", { name: /Open times/ });
+
+    api.sendChat.mockResolvedValueOnce({ reply: "Ok.", guard: "none", proposal: null });
+    await ask(user, "Morning: 10:00 AM");
+    await screen.findByText("Ok.");
+    expect(api.sendChat.mock.calls[1][1]).toEqual(OFFER);
+    // an answer without new slots does not wipe what the patient can still pick
+    expect(screen.getByRole("region", { name: /Open times/ })).toBeInTheDocument();
+  });
+
+  it("drops the old offer when the date just checked has no times", async () => {
+    api.sendChat.mockResolvedValueOnce({ reply: "Times.", guard: "none", proposal: null, slots: OFFER });
+    const user = await openChat();
+    await ask(user, "2030-01-07");
+    await screen.findByRole("region", { name: /Open times/ });
+
+    api.sendChat.mockResolvedValueOnce({ reply: "No times on that date. Try Tue, 8 Jan 2030?", guard: "none", proposal: null, slots: null, clear_slots: true });
+    await ask(user, "2030-01-12");
+    await screen.findByText(/No times on that date/);
+    expect(screen.queryByRole("region", { name: /Open times/ })).not.toBeInTheDocument();
+  });
+
+  it("starts clean after New chat", async () => {
+    api.sendChat.mockResolvedValueOnce({ reply: "Times.", guard: "none", proposal: null, slots: OFFER });
+    const user = await openChat();
+    await ask(user, "2030-01-07");
+    await screen.findByRole("region", { name: /Open times/ });
+    await user.click(screen.getByRole("button", { name: "New chat" }));
+    expect(screen.queryByRole("region", { name: /Open times/ })).not.toBeInTheDocument();
+
+    api.sendChat.mockResolvedValueOnce({ reply: "Hello.", guard: "none", proposal: null });
+    await ask(user, "hi");
+    await screen.findByText("Hello.");
+    expect(api.sendChat.mock.calls[1][1]).toBeNull();
+  });
+});
+
+
+describe("ChatWidget: booking confirmation", () => {
+  it("keeps a plain-text summary of the confirmation for later chat turns", async () => {
+    api.sendChat.mockResolvedValueOnce({ reply: "Prepared.", guard: "none", proposal: PROPOSAL });
+    api.confirmChatBooking.mockResolvedValue(CONFIRMED);
+    const user = await openChat();
+    await ask(user, "book dr anil");
+    await screen.findByRole("form", { name: "Confirm booking" });
+    await user.type(screen.getByLabelText("Your name"), "Asha Rao");
+    await user.type(screen.getByLabelText("Mobile number"), "9876543210");
+    await user.click(screen.getByLabelText("Yes, message me"));
+    await user.click(screen.getByRole("button", { name: "Confirm booking" }));
+    await screen.findByRole("region", { name: "Appointment confirmed" });
+
+    api.confirmChatBooking.mockReset();
+    api.sendChat.mockResolvedValueOnce({ reply: "You're welcome.", guard: "none", proposal: null });
+    await ask(user, "thanks");
+    await screen.findByText("You're welcome.");
+    const sent = api.sendChat.mock.calls[1][0] as { role: string; content: string }[];
+    expect(sent.some((m) => m.role === "assistant" && m.content.includes("20300102-0001"))).toBe(true);
+    expect(JSON.stringify(sent)).not.toContain("9876543210"); // the phone number never reaches the model
+  });
+
+  it("shows WhatsApp updates as Yes when the patient opted in", async () => {
+    api.sendChat.mockResolvedValueOnce({ reply: "Prepared.", guard: "none", proposal: PROPOSAL });
+    api.confirmChatBooking.mockResolvedValue({ ...CONFIRMED, notification_consent: true });
+    const user = await openChat();
+    await ask(user, "book dr anil");
+    await screen.findByRole("form", { name: "Confirm booking" });
+    await user.type(screen.getByLabelText("Your name"), "Asha Rao");
+    await user.type(screen.getByLabelText("Mobile number"), "9876543210");
+    await user.click(screen.getByLabelText("Yes, message me"));
+    await user.click(screen.getByRole("button", { name: "Confirm booking" }));
+    const card = await screen.findByRole("region", { name: "Appointment confirmed" });
+    expect(card).toHaveTextContent(/WhatsApp updatesYes/);
   });
 });

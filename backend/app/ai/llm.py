@@ -1,11 +1,11 @@
-"""LLM abstraction: one interface, a deterministic mock and a Grok (xAI) adapter.
+"""LLM abstraction: one interface, a deterministic mock plus Groq and Grok (xAI) adapters.
 
-``MockLLM`` is used whenever xAI credentials are absent (``settings.llm_mode == "mock"``).
+``MockLLM`` is used whenever no Groq or xAI credentials are set (``settings.llm_mode == "mock"``).
 It speaks the same tool-calling protocol as the live model, so the whole agent loop,
 tools and guardrails are exercised identically in both modes.
 
-``GrokLLM`` calls xAI through LangChain (``langchain-xai``). It is tested with a fake
-chat model only; it has NOT been run against the real API until a key is configured.
+``GroqLLM`` (preferred when configured) uses Groq's OpenAI-compatible API via ``langchain-openai``;
+``GrokLLM`` calls xAI via ``langchain-xai``. Both are unit-tested with a fake chat model.
 """
 
 from __future__ import annotations
@@ -71,7 +71,26 @@ def _text(content: Any) -> str:
     return ""
 
 
-class GrokLLM:
+class _ChatModelLLM:
+    """Shared tool-calling loop step for any LangChain chat model."""
+
+    def __init__(self, model: Any) -> None:
+        self._model = model
+
+    async def complete(self, messages: list[Message], tools: list[dict[str, Any]]) -> LLMResponse:
+        try:
+            runnable = self._model.bind_tools(tools, tool_choice="auto") if tools else self._model
+            out = await runnable.ainvoke([_to_langchain(m) for m in messages])
+            calls = tuple(
+                ToolCall(id=str(c["id"]), name=str(c["name"]), arguments=dict(c.get("args") or {}))
+                for c in (out.tool_calls or [])
+            )
+            return LLMResponse(content=_text(out.content), tool_calls=calls)
+        except Exception as exc:  # noqa: BLE001 - provider errors vary; never leak their text
+            raise ExternalServiceError("The assistant is temporarily unavailable.") from exc
+
+
+class GrokLLM(_ChatModelLLM):
     """Grok via LangChain's ``ChatXAI``. Pass ``model`` to inject a chat model (tests)."""
 
     def __init__(self, settings: Settings, model: Any | None = None) -> None:
@@ -87,19 +106,26 @@ class GrokLLM:
                 timeout=settings.llm_timeout_seconds,
                 max_retries=1,
             )
-        self._model = model
+        super().__init__(model)
 
-    async def complete(self, messages: list[Message], tools: list[dict[str, Any]]) -> LLMResponse:
-        try:
-            runnable = self._model.bind_tools(tools, tool_choice="auto") if tools else self._model
-            out = await runnable.ainvoke([_to_langchain(m) for m in messages])
-            calls = tuple(
-                ToolCall(id=str(c["id"]), name=str(c["name"]), arguments=dict(c.get("args") or {}))
-                for c in (out.tool_calls or [])
+
+class GroqLLM(_ChatModelLLM):
+    """Groq's OpenAI-compatible endpoint through LangChain's ``ChatOpenAI``."""
+
+    def __init__(self, settings: Settings, model: Any | None = None) -> None:
+        if model is None:
+            from langchain_openai import ChatOpenAI
+
+            model = ChatOpenAI(
+                model=settings.groq_model,
+                api_key=settings.groq_api_key,
+                base_url=settings.groq_base_url,
+                temperature=settings.groq_temperature,
+                max_tokens=800,  # reasoning models spend part of the budget thinking
+                timeout=settings.llm_timeout_seconds,
+                max_retries=1,
             )
-            return LLMResponse(content=_text(out.content), tool_calls=calls)
-        except Exception as exc:  # noqa: BLE001 - provider errors vary; never leak their text
-            raise ExternalServiceError("The assistant is temporarily unavailable.") from exc
+        super().__init__(model)
 
 
 # --------------------------------------------------------------------------- Mock
@@ -268,4 +294,8 @@ class MockLLM:
 
 
 def build_llm(settings: Settings) -> LLMClient:
-    return GrokLLM(settings) if settings.llm_mode == "live" else MockLLM()
+    if settings.llm_provider == "groq":
+        return GroqLLM(settings)
+    if settings.llm_provider == "xai":
+        return GrokLLM(settings)
+    return MockLLM()

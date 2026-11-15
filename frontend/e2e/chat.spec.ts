@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 test.beforeEach(async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "Chat with us" }).click();
+  await page.getByRole("button", { name: "Chat with Mitra" }).click();
 });
 
 test("the assistant lists specialties from the real catalogue", async ({ page }) => {

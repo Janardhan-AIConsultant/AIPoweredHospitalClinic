@@ -6,11 +6,12 @@ import uuid
 from dataclasses import dataclass
 from datetime import date, datetime
 
-from sqlalchemy import select
+from sqlalchemy import Integer, cast, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Appointment, ClinicSetting, Doctor, DoctorLeave
 from app.models.enums import ACTIVE_STATUSES
+from app.utils.reference import format_reference
 
 
 @dataclass(frozen=True)
@@ -48,6 +49,21 @@ class BookingRepository:
         losers get a clean 'slot unavailable' instead of a deadlock."""
         stmt = self._doctor_stmt(doctor_id).with_for_update(of=Doctor).execution_options(populate_existing=True)
         return (await self.session.scalars(stmt)).unique().one_or_none()
+
+    async def next_reference(self, day: date) -> str:
+        """Allocate ``YYYYMMDD-NNNN``: one more than the highest counter already used for that date.
+
+        A transaction-scoped advisory lock keyed on the date serialises allocation, so two patients booking
+        the same date at the same moment (even with different doctors) never get the same number. The lock is
+        released automatically at commit or rollback; the unique constraint remains the final safety net.
+        """
+        key = 7_000_000_000 + int(f"{day:%Y%m%d}")  # one lock per appointment date
+        await self.session.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": key})
+        ref = Appointment.appointment_reference
+        last = await self.session.scalar(
+            select(func.max(cast(func.substr(ref, 10), Integer))).where(ref.op("~")(f"^{day:%Y%m%d}-[0-9]+$"))
+        )
+        return format_reference(day, (last or 0) + 1)
 
     async def on_leave(self, doctor_id: uuid.UUID, day: date) -> bool:
         stmt = select(DoctorLeave.id).where(

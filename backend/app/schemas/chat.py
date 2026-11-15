@@ -1,8 +1,10 @@
 from __future__ import annotations
 
-from typing import Literal
+import uuid
+from datetime import date
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, StringConstraints, field_validator
 
 from app.ai.guardrails import MAX_HISTORY_MESSAGES, MAX_MESSAGE_CHARS, MAX_TOTAL_CHARS
 from app.schemas.booking import _EMAIL_RE
@@ -13,8 +15,29 @@ class ChatMessageIn(BaseModel):
     content: str = Field(min_length=1, max_length=MAX_MESSAGE_CHARS)
 
 
+HHMMStr = Annotated[str, StringConstraints(pattern=r"^\d{2}:\d{2}$")]
+
+
+class SlotTime(BaseModel):
+    time: HHMMStr
+    label: str = Field(max_length=12)
+
+
+class SlotsOffer(BaseModel):
+    """The open times the patient was last shown. Strictly typed because the client sends it back:
+    it only tells the assistant which doctor/date a bare "10:00 AM" refers to, and every booking is
+    still re-checked against real availability."""
+
+    doctor_id: uuid.UUID
+    doctor_name: str = Field(max_length=120)
+    date: date
+    date_label: str = Field(max_length=32)
+    times: list[SlotTime] = Field(max_length=40)
+
+
 class ChatRequest(BaseModel):
     messages: list[ChatMessageIn] = Field(min_length=1, max_length=MAX_HISTORY_MESSAGES * 2)
+    context: SlotsOffer | None = None
 
     @field_validator("messages")
     @classmethod
@@ -45,6 +68,8 @@ class ChatResponse(BaseModel):
     reply: str
     guard: str = "none"
     proposal: Proposal | None = None
+    slots: SlotsOffer | None = None  # replace the client's offered slots with these
+    clear_slots: bool = False  # the date just checked had none: drop any old offer
 
 
 class ConfirmRequest(BaseModel):

@@ -1,4 +1,5 @@
 import asyncio
+import re
 import uuid
 from datetime import UTC, date, datetime, time
 
@@ -66,7 +67,7 @@ async def count(maker, *where) -> int:
 async def test_book_success_and_slot_disappears(maker, doc):
     async with maker() as s:
         out = await make_service(s).book(cmd(doc))
-    assert out.status == "CONFIRMED" and len(out.appointment_reference) == 10
+    assert out.status == "CONFIRMED" and re.fullmatch(r"\d{8}-\d{4}", out.appointment_reference)
     assert out.doctor_name == "Dr. Anil Kumar" and float(out.consultation_fee) == 500
     async with maker() as s:
         slots = await AvailabilityService(BookingRepository(s), clock=clock).slots_for(doc, DAY)
@@ -273,3 +274,51 @@ async def test_api_validation_errors_do_not_echo_pii(client, doc):
 
 def test_app_error_hierarchy():
     assert issubclass(SlotUnavailableError, AppError) and SlotUnavailableError.status_code == 409
+
+
+# ------------------------------------------------------------- reference: <appointment date>-<counter>
+async def test_reference_is_date_dash_counter_starting_at_0001_and_counts_per_date(maker, doc):
+    async with maker() as s:
+        first = await make_service(s).book(cmd(doc, start=time(9)))
+    async with maker() as s:
+        second = await make_service(s).book(cmd(doc, start=time(9, 30), phone="9876543211"))
+    async with maker() as s:
+        next_day = await make_service(s).book(cmd(doc, start=time(9), day=date(2030, 1, 8), phone="9876543212"))
+    assert first.appointment_reference == "20300107-0001"
+    assert second.appointment_reference == "20300107-0002"
+    assert next_day.appointment_reference == "20300108-0001"  # each date has its own counter
+
+
+async def test_cancelled_appointments_keep_their_number_so_a_reference_is_never_reused(maker, doc):
+    async with maker() as s:
+        a = await make_service(s).book(cmd(doc, start=time(9)))
+    async with maker() as s:
+        await make_service(s).cancel(a.appointment_reference)
+    async with maker() as s:
+        b = await make_service(s).book(cmd(doc, start=time(9), phone="9876543211"))
+    assert (a.appointment_reference, b.appointment_reference) == ("20300107-0001", "20300107-0002")
+
+
+async def test_a_rescheduled_appointment_gets_the_next_number_of_its_new_date(maker, doc):
+    async with maker() as s:
+        out = await make_service(s).book(cmd(doc))
+    async with maker() as s:
+        new = await make_service(s).reschedule(out.appointment_reference, date(2030, 1, 8), time(10))
+    assert out.appointment_reference == "20300107-0001" and new.appointment_reference == "20300108-0001"
+
+
+async def test_simultaneous_bookings_for_one_date_get_distinct_consecutive_numbers(maker, doc):
+    async with maker() as s:
+        doctor_ids = list((await s.scalars(select(Doctor.id).order_by(Doctor.full_name))).all())
+
+    async def book(i: int) -> str:
+        async with maker() as s:
+            doctor = doctor_ids[i % len(doctor_ids)]
+            start = time(9) if i < len(doctor_ids) else time(9, 30)
+            return (await make_service(s).book(cmd(doctor, start=start, phone=f"98765433{i:02d}"))).appointment_reference
+
+    results = await asyncio.gather(*(book(i) for i in range(8)), return_exceptions=True)
+    refs = sorted(r for r in results if isinstance(r, str))
+    assert refs, results
+    numbers = [int(r.split("-")[1]) for r in refs]
+    assert len(set(refs)) == len(refs) and numbers == list(range(1, len(refs) + 1))  # no duplicates, no gaps

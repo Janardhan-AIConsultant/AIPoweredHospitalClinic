@@ -19,7 +19,7 @@ from app.database.session import get_session
 from app.repositories.booking import BookingRepository
 from app.repositories.catalog import CatalogRepository
 from app.schemas.booking import AppointmentOut
-from app.schemas.chat import ChatRequest, ChatResponse, ConfirmRequest, Proposal, ProposalSummary
+from app.schemas.chat import ChatRequest, ChatResponse, ConfirmRequest, Proposal, ProposalSummary, SlotsOffer
 from app.services.booking import BookCommand, BookingService
 
 router = APIRouter(prefix="/chat", tags=["chat"])
@@ -39,16 +39,23 @@ def get_chat_service(
     clock: Callable[[], datetime] = Depends(get_clock),
 ) -> ChatService:
     tools = ToolRegistry(CatalogRepository(session), BookingRepository(session), settings, clock)
-    return ChatService(llm, tools)
+    return ChatService(llm, tools, clock=clock)
 
 
 @router.post("", response_model=ChatResponse, dependencies=[Depends(rate_limited(_chat_limiter))])
 async def chat(body: ChatRequest, svc: ChatService = Depends(get_chat_service)) -> ChatResponse:
-    result = await svc.reply([ChatTurn(m.role, m.content) for m in body.messages])
+    result = await svc.reply([ChatTurn(m.role, m.content) for m in body.messages], body.context)
     proposal = None
     if result.proposal_token and result.proposal_summary:
         proposal = Proposal(token=result.proposal_token, summary=ProposalSummary(**result.proposal_summary))
-    return ChatResponse(reply=result.reply, guard=result.guard.value, proposal=proposal)
+    slots = SlotsOffer(**result.slots_offer) if result.slots_offer else None
+    return ChatResponse(
+        reply=result.reply,
+        guard=result.guard.value,
+        proposal=proposal,
+        slots=slots,
+        clear_slots=result.slots_cleared or proposal is not None,
+    )
 
 
 @router.post(

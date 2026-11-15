@@ -4,7 +4,7 @@ Date of review: end of the 15-phase build. "Verified" means executed in this rep
 
 ## Verdict
 
-**Ready for a staging deployment with every integration in mock mode. Not ready for real patients** until the blockers below are cleared. Nothing has been deployed, and no live xAI, Chroma, WhatsApp, Vercel or GitHub Actions run has happened. The code, tests and configuration are in place; what is missing is accounts, credentials, clinic content and a first real deployment to confirm the vendor-specific parts.
+**Ready for a staging deployment with every integration in mock mode. Not ready for real patients** until the blockers below are cleared. Nothing has been deployed, and no live Groq/xAI, Pinecone, WhatsApp, Vercel or GitHub Actions run has happened. The code, tests and configuration are in place; what is missing is accounts, credentials, clinic content and a first real deployment to confirm the vendor-specific parts.
 
 ## Requirements traceability
 
@@ -15,7 +15,7 @@ Date of review: end of the 15-phase build. "Verified" means executed in this rep
 | Chatbot with backend-controlled tools | `ai/` | model has 5 read-only tools; booking needs a human-submitted form; tests prove the model never sees PII or the proposal | **Done with mock model; live Grok unverified** |
 | Medical + prompt-injection guardrails | `ai/guardrails.py` | deterministic, run before the model; unit + e2e tests | **Done, verified** (a real model may still behave unexpectedly) |
 | PII protection | `core/security.py`, masking, logs | encrypted phone/email, masked staff views, log-privacy test, no tokens in browser storage | **Done, verified** |
-| Clinic info via RAG (Chroma) | `rag/` | mock path verified; Chroma and HF adapters tested against fakes only | **Mock verified; live unverified** |
+| Clinic info via RAG (Pinecone) | `rag/` | mock path verified; Pinecone adapters tested against fakes only | **Mock verified; live unverified** |
 | WhatsApp via transactional outbox | `notifications/` | outbox, retries, dedupe, webhook signature, STOP, production safety guard | **Done; Cloud API unverified** |
 | OTP patient retrieval, cancel, reschedule | `services/otp.py`, `routes/patient.py`, `patient-portal.tsx` | throttling, lockout, no enumeration, e2e flow | **Done, verified** (code delivery unverified live) |
 | RBAC dashboards (admin, doctor) | `routes/admin.py`, `doctor_portal.py`, `components/staff/` | role matrix, immediate deactivation, scope tests, e2e | **Done, verified** |
@@ -46,7 +46,7 @@ Date of review: end of the 15-phase build. "Verified" means executed in this rep
 
 ### Strongly recommended before launch
 - **Live Grok check** with the real model name: tool calling works, the answers stay short and on-topic, the guardrails still catch the red-team prompts (the e2e prompts are a starting set), and responses stay within the 30 s function limit.
-- **Live Chroma + embeddings.** Add `chromadb-client` (or `chromadb`) to `backend/requirements.txt`, set `CHROMA_URL` and `HUGGINGFACE_API_TOKEN`, run `python -m app.rag.ingest`, then compare answers with the mock. The mock matches words only; live retrieval quality is unknown.
+- **Live Pinecone + embeddings.** Set `PINECONE_API_KEY` (and optionally `PINECONE_INDEX_HOST`), run `python -m app.rag.ingest`, then compare answers with the mock. The mock matches words only; live retrieval quality is unknown.
 - **Monitoring.** Only structured logs exist. Add an uptime check on `/health/ready` and an alert on dead messages (`GET /admin/stats` → `notifications.DEAD`), and consider error tracking.
 - **Admin protection.** Admin accounts have a password only (12+ characters, lockout after 5 failures). There is no MFA and no password change or reset: a locked-out or forgotten account needs a database fix.
 - **A real-browser pass on phones**, in dark mode, with a screen reader and keyboard only; automated checks cover part of WCAG only. Test in Safari and Firefox too (only Chromium was run).
@@ -69,15 +69,15 @@ Schedule editing in the admin UI, user-management UI, chat feedback (table exist
 | `script-src 'unsafe-inline'` in the CSP | Weaker XSS defence-in-depth | no HTML injection sinks; strict headers otherwise | Low |
 | Demo doctors in production database | Real bookings against fake doctors | checklist item 1 | High until removed |
 | Single timezone and single clinic | Not suitable for multi-location use | by design | Accepted |
-| Vendor-specific code never run live (Grok, Chroma, HF, WhatsApp, Vercel, Actions) | Surprises at first go-live | adapters isolated behind interfaces, tested against fakes, mock fallback | Medium; this is what the live verification below is for |
+| Vendor-specific code never run live (Groq/Grok, Pinecone, HF, WhatsApp, Vercel, Actions) | Surprises at first go-live | adapters isolated behind interfaces, tested against fakes, mock fallback | Medium; this is what the live verification below is for |
 
 ## First live verification plan
 
 Do these one at a time, in this order, each on staging first; stop and fix before the next.
 1. Neon (staging branch): `alembic upgrade head`, `/health/ready` shows `database: ok`.
 2. Deploy API and web; staff login, reload, logout; check the client IP seen by the API.
-3. Grok: set `XAI_API_KEY` and `XAI_MODEL`; run the chat scenarios (specialties, a doctor's slots, a prepared booking, an emergency, a dosage question, a prompt-injection attempt).
-4. Chroma + embeddings: ingest, then ask the FAQ questions.
+3. LLM: set `GROQ_API_KEY` and `GROQ_MODEL` (or `XAI_*`); run the chat scenarios (specialties, a doctor's slots, a prepared booking, an emergency, a dosage question, a prompt-injection attempt).
+4. Pinecone + embeddings: ingest, then ask the FAQ questions.
 5. WhatsApp: templates → one confirmation, one OTP, one `STOP`, one delivery receipt; watch `GET /admin/stats`.
 6. Cron: confirm both triggers reach `/internal/cron/notifications`.
 7. Backup restore drill; remove demo data; switch DNS.

@@ -24,10 +24,11 @@ test("a guest can find a doctor and book an appointment", async ({ page }) => {
 
   await page.getByLabel("Patient name").fill("E2E Guest");
   await page.getByLabel("Mobile number").fill(uniquePhone());
+  await page.getByLabel("No, thanks").check();
   await page.getByRole("button", { name: "Confirm appointment" }).click();
 
   await expect(page.getByText("Please save your reference number")).toBeVisible();
-  await expect(page.getByText(/^[A-Z2-9]{10}$/)).toBeVisible();
+  await expect(page.getByTestId("appointment-reference")).toBeVisible();
   await expect(page.getByText("Dr. Anil Kumar").first()).toBeVisible();
 });
 
@@ -69,9 +70,9 @@ test("a patient verifies with a WhatsApp code, reschedules, then cancels", async
     if (await times.first().isVisible({ timeout: 4_000 }).catch(() => false)) break;
   }
   await times.first().click();
-  const moved = page.getByText(/New reference ([A-Z2-9]{10})/);
+  const moved = page.getByText(/New reference (\d{8}-\d{4,})/);
   await expect(moved).toBeVisible();
-  const newRef = /New reference ([A-Z2-9]{10})/.exec((await moved.textContent()) ?? "")![1];
+  const newRef = /New reference (\d{8}-\d{4,})/.exec((await moved.textContent()) ?? "")![1];
   await expect(page.getByText(`Reference ${newRef}`, { exact: true })).toBeVisible();
 
   // cancel it

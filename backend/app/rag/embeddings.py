@@ -7,8 +7,6 @@ import math
 import re
 from typing import Any, Protocol
 
-import httpx
-
 from app.core.exceptions import ExternalServiceError
 
 _WORD = re.compile(r"[a-z0-9]+")
@@ -53,51 +51,44 @@ def _normalise(vec: list[float]) -> list[float]:
     return [v / norm for v in vec]
 
 
-class HFInferenceEmbedder:
-    """Query/ingest-time embeddings through the Hugging Face Inference API (no torch in the deployment).
+class PineconeEmbedder:
+    """Embeddings from Pinecone's hosted inference (same API key as the index, no torch in the deployment).
 
-    Written to the documented feature-extraction endpoint; NOT verified against the real API
-    (no token yet). Token-level outputs are mean-pooled; vectors are L2-normalised.
+    The model is asymmetric, so passages and queries are embedded with different ``input_type``
+    values; ``embed`` is for stored passages and ``embed_query`` for the user's question.
     """
 
-    URL = "https://router.huggingface.co/hf-inference/models/{model}/pipeline/feature-extraction"
+    BATCH = 96  # the service's per-request input limit
 
-    def __init__(
-        self, model: str, token: str, timeout: float = 15.0, transport: httpx.BaseTransport | None = None
-    ) -> None:
-        self._url = self.URL.format(model=model)
-        self._token, self._timeout, self._transport = token, timeout, transport
+    def __init__(self, model: str, client: Any, dimension: int | None = None) -> None:
+        self._model, self._client, self._dimension = model, client, dimension
 
-    def embed(self, texts: list[str]) -> list[list[float]]:
+    @classmethod
+    def from_settings(cls, settings: Any) -> PineconeEmbedder:
+        from pinecone import Pinecone  # type: ignore[import-not-found,unused-ignore]
+
+        client = Pinecone(api_key=settings.pinecone_api_key.get_secret_value())
+        return cls(settings.pinecone_embed_model, client, settings.pinecone_embed_dimension)
+
+    def _embed(self, texts: list[str], input_type: str) -> list[list[float]]:
+        out: list[list[float]] = []
+        params: dict[str, Any] = {"input_type": input_type, "truncate": "END"}
+        if self._dimension:
+            params["dimension"] = self._dimension
         try:
-            with httpx.Client(timeout=self._timeout, transport=self._transport) as client:
-                resp = client.post(
-                    self._url,
-                    json={"inputs": texts, "options": {"wait_for_model": True}},
-                    headers={"Authorization": f"Bearer {self._token}"},
+            for i in range(0, len(texts), self.BATCH):
+                res = self._client.inference.embed(
+                    model=self._model, inputs=texts[i : i + self.BATCH], parameters=params
                 )
-            resp.raise_for_status()
-            data = resp.json()
-            if not isinstance(data, list) or len(data) != len(texts):
-                raise ValueError("unexpected embedding response")
-            return [_normalise(self._pool(item)) for item in data]
-        except (httpx.HTTPError, ValueError, TypeError) as exc:
+                out.extend([_normalise([float(x) for x in item["values"]]) for item in res])
+        except Exception as exc:  # noqa: BLE001 - provider errors vary; never leak their text
             raise ExternalServiceError("Embedding service is temporarily unavailable.") from exc
-
-    @staticmethod
-    def _pool(item: Any) -> list[float]:
-        if item and isinstance(item[0], list):  # [tokens][dims] -> mean over tokens
-            return [sum(col) / len(item) for col in zip(*item, strict=True)]
-        return [float(x) for x in item]
-
-
-class HuggingFaceEmbedder:
-    """Local sentence-transformers model. Optional dependency; NOT verified in this build."""
-
-    def __init__(self, model_name: str) -> None:
-        from sentence_transformers import SentenceTransformer  # type: ignore[import-not-found,unused-ignore]
-
-        self._model: Any = SentenceTransformer(model_name)
+        if len(out) != len(texts):
+            raise ExternalServiceError("Embedding service is temporarily unavailable.")
+        return out
 
     def embed(self, texts: list[str]) -> list[list[float]]:
-        return [list(map(float, v)) for v in self._model.encode(texts, normalize_embeddings=True)]
+        return self._embed(texts, "passage")
+
+    def embed_query(self, text: str) -> list[float]:
+        return self._embed([text], "query")[0]

@@ -42,7 +42,7 @@ test("the booking page with the chat widget open is accessible", async ({ page }
   await settle(page, "/doctors");
   await page.getByRole("link", { name: "Book an appointment with Dr. Anil Kumar" }).click();
   await page.waitForLoadState("networkidle");
-  await page.getByRole("button", { name: "Chat with us" }).click();
+  await page.getByRole("button", { name: "Chat with Mitra" }).click();
   expect(await violations(page)).toEqual([]);
 });
 

@@ -20,14 +20,15 @@ import {
   weekdayIndex,
 } from "@/lib/format";
 import type { Appointment, BookingRequest, Doctor, Slot } from "@/lib/types";
-import { Alert, Button, Card, Field, TextArea, TextInput, cx } from "./ui";
+import { AppointmentDetails, ARRIVE_EARLY_MINUTES, ReferenceBadge } from "./appointment-summary";
+import { Alert, Button, Card, Field, TextArea, TextInput, WhatsAppChoice, cx } from "./ui";
 
 export interface FormValues {
   patient_name: string;
   phone: string;
   email: string;
   reason: string;
-  consent: boolean;
+  consent: boolean | null; // null = not answered yet; WhatsApp is opt-in and must be asked
 }
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
@@ -42,6 +43,9 @@ export function validateForm(v: FormValues): Record<string, string> {
   }
   if (v.email.trim() && !EMAIL_RE.test(v.email.trim())) {
     errors.email = "Enter a valid email address or leave it blank.";
+  }
+  if (v.consent === null) {
+    errors.consent = "Please choose Yes or No.";
   }
   return errors;
 }
@@ -60,7 +64,7 @@ export function buildPayload(
     phone: v.phone.trim(),
     email: v.email.trim() || null,
     reason_for_visit: v.reason.trim() || null,
-    notification_consent: v.consent,
+    notification_consent: v.consent === true,
   };
 }
 
@@ -77,7 +81,7 @@ const EMPTY: FormValues = {
   phone: "",
   email: "",
   reason: "",
-  consent: false,
+  consent: null,
 };
 
 export function BookingFlow({ doctor }: { doctor: Doctor }) {
@@ -347,17 +351,12 @@ export function BookingFlow({ doctor }: { doctor: Doctor }) {
                 onChange={(e) => update("reason", e.target.value)}
               />
             </Field>
-            <label className="flex items-start gap-2 text-sm">
-              <input
-                type="checkbox"
-                className="mt-1"
-                checked={values.consent}
-                onChange={(e) => update("consent", e.target.checked)}
-              />
-              <span>
-                Send my appointment confirmation and reminders on WhatsApp.
-              </span>
-            </label>
+            <WhatsAppChoice
+              name="whatsapp-consent"
+              value={values.consent}
+              error={errors.consent}
+              onChange={(next) => update("consent", next)}
+            />
             <Button type="submit" disabled={submitting} className="w-full">
               {submitting ? "Booking…" : "Confirm appointment"}
             </Button>
@@ -386,19 +385,14 @@ function Confirmation({
           appointment.
         </p>
       </div>
-      <p className="rounded-lg bg-primary-soft px-4 py-3 text-center text-2xl font-bold tracking-widest">
-        {appointment.appointment_reference}
-      </p>
-      <dl className="grid grid-cols-2 gap-3 text-sm">
-        <Item label="Doctor" value={appointment.doctor_name} />
-        <Item label="Specialty" value={appointment.specialization} />
-        <Item label="Date" value={formatDate(appointment.appointment_date)} />
-        <Item label="Time" value={formatTime(appointment.start_time)} />
-        <Item label="Patient" value={appointment.patient_name} />
-        <Item label="Fee" value={formatFee(appointment.consultation_fee)} />
-      </dl>
+      <ReferenceBadge reference={appointment.appointment_reference} />
+      <AppointmentDetails appt={appointment} />
       <p className="text-sm text-muted">
-        Please arrive 10 minutes early.
+        Please arrive {ARRIVE_EARLY_MINUTES} minutes early and quote your reference. To change or cancel, use{" "}
+        <a href="/my-appointments" className="font-medium text-primary underline">
+          My appointments
+        </a>
+        .
       </p>
       <div className="flex gap-3">
         <Button variant="secondary" onClick={() => window.print()}>
@@ -409,14 +403,5 @@ function Confirmation({
         </Button>
       </div>
     </Card>
-  );
-}
-
-function Item({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <dt className="text-xs text-muted">{label}</dt>
-      <dd className="font-medium">{value}</dd>
-    </div>
   );
 }

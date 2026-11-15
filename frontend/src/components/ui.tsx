@@ -104,6 +104,51 @@ export function Field({
   );
 }
 
+/** Explicit yes/no question: WhatsApp messages are opt-in, so the patient must answer before booking. */
+export function WhatsAppChoice({
+  name,
+  value,
+  onChange,
+  error,
+  compact = false,
+}: {
+  name: string;
+  value: boolean | null;
+  onChange: (next: boolean) => void;
+  error?: string;
+  compact?: boolean;
+}) {
+  const option = (label: string, v: boolean) => (
+    <label className="flex cursor-pointer items-center gap-2">
+      <input
+        type="radio"
+        name={name}
+        checked={value === v}
+        onChange={() => onChange(v)}
+        aria-describedby={error ? `${name}-error` : undefined}
+      />
+      <span>{label}</span>
+    </label>
+  );
+  return (
+    <fieldset className={cx("space-y-1.5", compact ? "text-xs" : "text-sm")}>
+      <legend className="font-medium">
+        Would you like your appointment details and reminders on WhatsApp?
+      </legend>
+      <div className="flex flex-wrap gap-x-6 gap-y-1">
+        {option("Yes, message me", true)}
+        {option("No, thanks", false)}
+      </div>
+      <p className="text-muted">WhatsApp is optional: choose No if you prefer. Your number is still used to find your booking.</p>
+      {error && (
+        <p id={`${name}-error`} role="alert" className="text-xs text-danger">
+          {error}
+        </p>
+      )}
+    </fieldset>
+  );
+}
+
 export function TextInput({
   error,
   ...props

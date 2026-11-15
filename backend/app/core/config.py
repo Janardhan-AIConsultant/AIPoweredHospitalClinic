@@ -52,15 +52,22 @@ class Settings(BaseSettings):
     xai_api_key: SecretStr = SecretStr("")
     xai_model: str = ""
     xai_base_url: str = "https://api.x.ai/v1"
+    # --- Groq (OpenAI-compatible API). Preferred over xAI when both are configured.
+    groq_api_key: SecretStr = SecretStr("")
+    groq_model: str = ""
+    groq_base_url: str = "https://api.groq.com/openai/v1"
+    groq_temperature: float = Field(default=0.0, ge=0, le=2)
     llm_timeout_seconds: float = Field(default=20.0, gt=0, le=25)
 
-    # --- ChromaDB / embeddings ---------------------------------------
-    chroma_url: str = ""
-    chroma_auth_token: SecretStr = SecretStr("")
-    chroma_tenant: str = "default_tenant"
-    chroma_database: str = "default_database"
-    huggingface_model: str = "BAAI/bge-small-en-v1.5"
-    huggingface_api_token: SecretStr = SecretStr("")
+    # --- Pinecone / embeddings ---------------------------------------
+    pinecone_api_key: SecretStr = SecretStr("")
+    pinecone_index_name: str = "clinic-knowledge"
+    pinecone_index_host: str = ""  # optional: skips the name lookup at query time (faster cold start)
+    pinecone_namespace: str = "clinic_knowledge"
+    pinecone_cloud: str = "aws"  # used only when ingestion has to create the index
+    pinecone_region: str = "us-east-1"
+    pinecone_embed_model: str = "llama-text-embed-v2"  # Pinecone-hosted inference; same API key
+    pinecone_embed_dimension: int = 1024  # must equal the index dimension
 
     # --- WhatsApp Cloud API ------------------------------------------
     whatsapp_access_token: SecretStr = SecretStr("")
@@ -103,11 +110,19 @@ class Settings(BaseSettings):
     # --- Integration modes (mock until credentials are supplied) -----
     @property
     def llm_mode(self) -> IntegrationMode:
-        return "live" if self.xai_api_key.get_secret_value() and self.xai_model else "mock"
+        return "live" if self.llm_provider else "mock"
 
     @property
-    def chroma_mode(self) -> IntegrationMode:
-        return "live" if self.chroma_url else "mock"
+    def llm_provider(self) -> Literal["groq", "xai", ""]:
+        if self.groq_api_key.get_secret_value() and self.groq_model:
+            return "groq"
+        if self.xai_api_key.get_secret_value() and self.xai_model:
+            return "xai"
+        return ""
+
+    @property
+    def pinecone_mode(self) -> IntegrationMode:
+        return "live" if self.pinecone_api_key.get_secret_value() else "mock"
 
     @property
     def whatsapp_mode(self) -> IntegrationMode:

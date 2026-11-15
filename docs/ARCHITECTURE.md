@@ -3,7 +3,7 @@
 Reflects the system as built at the end of Phase 15. Deployment details: [DEPLOYMENT.md](DEPLOYMENT.md). Readiness and open risks: [READINESS.md](READINESS.md).
 
 ## Principles
-- PostgreSQL is the only transactional store. ChromaDB holds approved clinic information only (hours, policies, FAQs), never patient data.
+- PostgreSQL is the only transactional store. Pinecone holds approved clinic information only (hours, policies, FAQs), never patient data.
 - The language model can only *call read-only tools* and *propose* a booking. FastAPI services validate and execute everything; no model-generated SQL or code. A booking is created only by a human submitting a form.
 - Layers: route → service → repository → model. External systems sit behind interfaces with a mock and a live adapter; the mode is `mock` unless every credential is present, and `/health/ready` reports it.
 - Personal data: phone and email are Fernet-encrypted; phones are looked up by HMAC. Logs and audit records are PII-masked. Staff see masked phones.
@@ -18,7 +18,7 @@ flowchart TD
   CHAT --> LLM[LLM client: MockLLM or Grok via LangChain ChatXAI]
   LLM -->|tool calls| TOOLS[5 read-only tools]
   TOOLS --> SVC
-  TOOLS --> RAG[Retriever] --> CH[(ChromaDB, live) / in-memory index, mock]
+  TOOLS --> RAG[Retriever] --> CH[(Pinecone, live) / in-memory index, mock]
   SVC -->|same transaction| OB[(notification_outbox)]
   GHA[GitHub Actions every 5 min] & VC[Vercel Cron daily] -->|Bearer CRON_SECRET| DRAIN["/internal/cron/notifications"]
   DRAIN --> OB
@@ -35,7 +35,7 @@ flowchart TD
 | `services/booking.py` | book / cancel / reschedule: row lock on the doctor, slots recomputed under the lock, exclusion constraint as the final guard, idempotency keys, outbox write in the same transaction |
 | `services/auth.py`, `otp.py`, `staff.py`, `audit.py`, `retention.py` | staff login + rotating refresh tokens + lockout; WhatsApp OTP; dashboards; audit trail; purge of short-lived data |
 | `ai/` | guardrails (emergency > injection > medical, before the model), tool registry (strict argument validation), signed booking proposals, chat loop, LLM clients |
-| `rag/` | markdown chunking, embedders (hashing mock, HF Inference API, local sentence-transformers), vector stores (in-memory, Chroma), retriever |
+| `rag/` | markdown chunking, embedders (hashing mock, Pinecone hosted inference), vector stores (in-memory, Pinecone), retriever |
 | `notifications/` | templates, outbox writer, WhatsApp senders (mock, Cloud API), drain worker, webhook processing |
 | `api/routes/` | `health`, `catalog`, `booking`, `chat`, `patient` (OTP), `auth`, `admin`, `doctor_portal`, `whatsapp` (webhook), `internal` (cron) |
 
@@ -54,7 +54,7 @@ flowchart TD
 - **No separate worker host.** The outbox lives in PostgreSQL and a secret-protected endpoint drains it; the trigger is Vercel Cron (daily on Hobby) plus a GitHub Actions schedule.
 - **LangChain is used as the model client** (`langchain-xai` `ChatXAI`), not as an agent framework: the tool loop, argument validation and guardrails are our own code, which keeps the safety properties testable.
 - **Five tools, not nine.** Only what the product needs: no cancel/reschedule tool exists for the model.
-- **Embeddings:** hashing embedder in mock mode; Hugging Face *Inference API* when `HUGGINGFACE_API_TOKEN` is set (torch does not fit serverless limits); local `sentence-transformers` only for offline ingestion. The ingest CLI is the only writer to Chroma.
+- **Embeddings:** hashing embedder in mock mode; Pinecone-hosted `llama-text-embed-v2` (1024 dimensions, asymmetric passage/query input types) when `PINECONE_API_KEY` is set. The ingest CLI is the only writer to Pinecone.
 - **Same-origin proxy** (`/api` rewrite) is the recommended topology so the refresh cookie is first-party. A cross-site mode (`SameSite=None`) is supported but depends on third-party cookies.
 - **Two independent projects** (`backend/`, `frontend/`), no npm workspace.
 - **Enums as constrained strings**, soft deletes, UTC storage with Asia/Kolkata presentation.

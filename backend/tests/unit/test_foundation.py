@@ -6,23 +6,33 @@ import pytest
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
-from app.core.config import Settings
+from app.core.config import Settings, get_settings
 from app.core.logging import JsonFormatter
 from app.main import create_app
 from app.utils.phone import normalize_phone
 from app.utils.pii import mask_phone, mask_text, redact_mapping
-from app.core.config import get_settings
 from app.utils.timezone import to_clinic, to_utc
 
 
 def make_client() -> TestClient:
-    return TestClient(create_app(Settings(_env_file=None, app_env="test")), raise_server_exceptions=False)
+    # Routes resolve settings via get_settings(); override it so a local backend/.env never leaks into tests.
+    app = create_app(Settings(_env_file=None, app_env="test"))
+    app.dependency_overrides[get_settings] = lambda: Settings(_env_file=None, app_env="test")
+    return TestClient(app, raise_server_exceptions=False)
 
 
 # --- config -----------------------------------------------------------
+def test_mask_text_never_masks_iso_dates():
+    # Regression: "2026-11-16" was masked as a phone number, so the chatbot could not read dates.
+    assert mask_text("2026-11-16") == "2026-11-16"
+    assert mask_text("Book 2026-11-16 10:00 please") == "Book 2026-11-16 10:00 please"
+    masked = mask_text("call 98765 43210 on 2026-11-16")
+    assert "2026-11-16" in masked and "98765 43210" not in masked
+
+
 def test_defaults_are_mock_mode():
     s = Settings(_env_file=None)
-    assert (s.llm_mode, s.chroma_mode, s.whatsapp_mode) == ("mock", "mock", "mock")
+    assert (s.llm_mode, s.pinecone_mode, s.whatsapp_mode) == ("mock", "mock", "mock")
 
 
 def test_production_requires_secrets():
@@ -53,6 +63,9 @@ def test_invalid_log_level():
 def test_live_mode_needs_all_credentials():
     assert Settings(_env_file=None, xai_api_key="k").llm_mode == "mock"
     assert Settings(_env_file=None, xai_api_key="k", xai_model="m").llm_mode == "live"
+    assert Settings(_env_file=None, groq_api_key="k").llm_mode == "mock"
+    g = Settings(_env_file=None, groq_api_key="k", groq_model="m", xai_api_key="k", xai_model="m")
+    assert (g.llm_mode, g.llm_provider) == ("live", "groq")
 
 
 # --- pii / phone / tz -------------------------------------------------
@@ -128,10 +141,7 @@ def test_unhandled_error_hides_details():
 
 
 def test_readiness_without_database_reports_not_configured():
-    # Isolate from any local backend/.env: the readiness route resolves settings via get_settings().
-    app = create_app(Settings(_env_file=None, app_env="test"))
-    app.dependency_overrides[get_settings] = lambda: Settings(_env_file=None, app_env="test")
-    body = TestClient(app).get("/health/ready").json()
+    body = make_client().get("/health/ready").json()
     assert body["database"] == "not_configured" and body["status"] == "ok"
 
 
@@ -164,3 +174,31 @@ def test_cors_preflight_allows_credentialed_staff_calls_from_frontend_only():
         headers={"Origin": "https://evil.example", "Access-Control-Request-Method": "POST"},
     )
     assert "access-control-allow-origin" not in evil.headers
+
+
+def test_reference_is_appointment_date_dash_counter_starting_at_0001():
+    from datetime import date
+
+    from app.models import Appointment
+    from app.utils.reference import REFERENCE_COLUMN_LENGTH, format_reference
+
+    assert format_reference(date(2026, 12, 12), 1) == "20261212-0001"
+    assert format_reference(date(2026, 12, 12), 2) == "20261212-0002"
+    assert format_reference(date(2027, 1, 5), 37) == "20270105-0037"
+    assert format_reference(date(2026, 12, 12), 9999) == "20261212-9999"
+    assert format_reference(date(2026, 12, 12), 10000) == "20261212-10000"  # a very busy day just grows
+    with pytest.raises(ValueError):
+        format_reference(date(2026, 12, 12), 0)
+    # always fits the existing column, so no schema change is needed
+    column = Appointment.appointment_reference.property.columns[0].type.length
+    assert column == REFERENCE_COLUMN_LENGTH == 16
+    assert len(format_reference(date(2026, 12, 12), 9_999_999)) <= column
+
+
+def test_parse_reference_reads_new_references_and_ignores_older_random_ones():
+    from app.utils.reference import parse_reference
+
+    assert parse_reference("20261212-0042") == ("20261212", 42)
+    assert parse_reference("XC8XMLDHWL") is None  # earlier random format keeps working for lookups
+    assert parse_reference("20261212-ABCDEFG") is None
+    assert parse_reference("2026121-0001") is None

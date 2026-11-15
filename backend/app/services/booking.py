@@ -13,7 +13,6 @@ reschedule (OTP / admin / doctor) is the caller's responsibility.
 from __future__ import annotations
 
 import logging
-import secrets
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -37,13 +36,8 @@ from app.utils.timezone import utcnow
 
 logger = logging.getLogger(__name__)
 
-_REF_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # no 0/O/1/I
 _MAX_ATTEMPTS = 3
 _RETRYABLE_SQLSTATES = {"40P01", "40001"}  # deadlock_detected, serialization_failure
-
-
-def new_reference() -> str:
-    return "".join(secrets.choice(_REF_ALPHABET) for _ in range(10))
 
 
 @dataclass(frozen=True)
@@ -72,6 +66,7 @@ def to_out(appt: Appointment, doctor: Doctor) -> AppointmentOut:
         status=appt.appointment_status,
         patient_name=appt.patient_name,
         reason_for_visit=appt.reason_for_visit,
+        notification_consent=appt.notification_consent,
     )
 
 
@@ -130,8 +125,9 @@ class BookingService:
                 cmd.patient_name, cmd.phone, cmd.email, cmd.notification_consent
             )
             await self.session.flush()  # surfaces patient unique races early
+            reference = await self.repo.next_reference(cmd.day)
             appt = Appointment(
-                appointment_reference=new_reference(),
+                appointment_reference=reference,
                 patient_id=patient.id,
                 doctor_id=doctor.id,
                 doctor=doctor,
@@ -206,8 +202,9 @@ class BookingService:
             old.version += 1
             await self.session.flush()
             slot = await self._require_slot(doctor, new_day, new_start)
+            new_reference = await self.repo.next_reference(new_day)
             new = Appointment(
-                appointment_reference=new_reference(),
+                appointment_reference=new_reference,
                 patient_id=old.patient_id,
                 doctor_id=doctor.id,
                 doctor=doctor,
