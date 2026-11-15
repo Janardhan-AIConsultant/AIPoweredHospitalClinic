@@ -22,6 +22,10 @@ Two independent Vercel projects, each with its own **Root Directory** (`backend`
    - `api`: Root Directory `backend`. Framework preset: FastAPI/Other. Python 3.12 is selected by `backend/.python-version`.
    - `web`: Root Directory `frontend`, Framework: Next.js.
    - Both `vercel.json` files set `git.deploymentEnabled=false`: deployments come from the *Deploy* workflow so that migrations run first. Remove that line if you prefer Vercel's own Git integration (then migrate manually before merging).
+   **Python dependencies:** Vercel installs the API's packages from `backend/pyproject.toml` (it prefers it over
+   `requirements.txt`; with a `pyproject.toml` that lacks a dependency list the function starts with nothing installed and
+   fails with `No module named 'fastapi'`). Keep the two lists identical; `tests/unit/test_dependencies.py` enforces it.
+   Values copied from a `.env` file must not keep their surrounding quotes.
 3. **Environment variables** (Vercel → Settings → Environment Variables → Production):
 
    | Project | Variable | Value |
