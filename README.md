@@ -1,14 +1,76 @@
-# Bindu Clinic — Hospital & Appointment Platform
+# Bindu Clinic: AI-assisted clinic appointment booking
 
-AI-assisted clinic website: doctor discovery, real-time availability, guest booking,
-Grok-powered appointment chatbot (backend-controlled tools), WhatsApp confirmations
-through a transactional outbox. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+Book a doctor in under a minute. Patients browse doctors, see **real-time availability** and book as a guest; **Mitra**, an AI
+assistant, can do the same through chat. Confirmations and reminders on **WhatsApp** are optional and opt-in.
 
-**Status:** all 15 build phases are complete and verified locally (241 backend tests, 62 frontend tests, 27 browser
-end-to-end tests in two modes). Every external integration (xAI/Grok, Pinecone + embeddings, WhatsApp Cloud API) runs in
-**MOCK** mode until credentials are set; `GET /health/ready` reports the active mode of each. **Nothing has been deployed and
-no live integration has been exercised**: read [docs/READINESS.md](docs/READINESS.md) (blockers, risks, first-live
-verification plan) before going to production.
+## What it does
+
+- **Guest booking, no account.** Pick a doctor, a date and a time, enter a name and mobile number, done. Double-booking is
+  prevented by the database itself, not just the UI.
+- **Mitra, the chat assistant.** Finds doctors, shows open times, explains why a date has none and offers the nearest valid
+  dates, and prepares a booking the patient confirms in a card. It answers clinic questions (hours, address, policies) from the
+  clinic's own documents. It never gives medical advice and cannot book on its own.
+- **Clear confirmations.** Every booking gets a reference of the form `<appointment date>-<counter>` (for example
+  `20261212-0001`) and a structured confirmation with doctor, date, time range, fee and next steps.
+- **Optional WhatsApp updates.** The patient is asked explicitly (Yes or No); messages go through a transactional outbox so
+  none is sent for a booking that did not commit.
+- **Patient self-service.** Verify the mobile number with a WhatsApp one-time code to view, cancel or reschedule.
+- **Staff dashboards.** Admin and doctor roles with audit logging, leave management and appointment actions.
+
+## Tech stack
+
+| Layer | Technology |
+| --- | --- |
+| Frontend | Next.js 16, React 19, TypeScript, Tailwind CSS 4 |
+| Backend | FastAPI, Pydantic v2, SQLAlchemy 2 (async), Alembic, Python 3.12 |
+| Database | PostgreSQL (Neon in production) |
+| AI | LangChain with Groq (`openai/gpt-oss-120b`) or xAI Grok; deterministic mock when no key is set |
+| Retrieval (RAG) | Pinecone serverless index with Pinecone-hosted `llama-text-embed-v2` embeddings |
+| Messaging | WhatsApp Cloud API through a transactional outbox |
+| Hosting and CI | Vercel, Neon, GitHub Actions, Docker |
+
+## How it fits together
+
+```
+Browser (Next.js) --> FastAPI --> PostgreSQL            bookings, patients (encrypted PII), audit, outbox
+                         |--> Mitra: guardrails -> LLM <-> read-only tools (doctors, slots, clinic info, propose booking)
+                         |        `--> Pinecone (clinic documents only, never patient data)
+                         `--> WhatsApp Cloud API (confirmations, reminders, OTP)
+```
+
+Design choices worth knowing:
+- **The model cannot book.** It can only *propose*; the patient confirms in a form that sends their details straight to the
+  backend, never through the model. Proposals are signed and expire after 10 minutes.
+- **Availability is computed once** by a pure, tested function that both the UI and the write path use, so what patients see
+  and what is enforced cannot diverge.
+- **Every integration has a mock mode.** Without credentials the app runs fully offline; `GET /health/ready` reports which
+  integrations are live. Settings fail fast in production.
+- **Privacy by design.** Names, phone numbers and emails are encrypted at rest, masked in logs and never sent to the model.
+
+## Status
+
+Working end to end on a developer machine against a Neon database: guest booking, the Mitra assistant on live Groq, Pinecone
+retrieval, the patient portal and the staff area, covered by extensive backend, frontend and browser tests. **Not yet
+deployed, and WhatsApp still runs in mock mode** until Meta credentials and approved templates exist. The clinic content in
+`backend/knowledge/` and the `/privacy` page are placeholders the clinic must replace. Read
+[docs/READINESS.md](docs/READINESS.md) (blockers, risks, launch checklist) before going to production.
+
+## Run it locally
+
+```bash
+# Backend: http://localhost:8000
+cd backend && python -m venv .venv && .venv\Scripts\activate     # Windows
+pip install -r requirements-dev.txt
+copy .env.example .env      # then fill in DATABASE_URL and the four secrets
+alembic upgrade head
+uvicorn app.main:app --reload
+
+# Frontend: http://localhost:3000
+cd frontend && npm install && npm run dev
+```
+
+Leave the Groq, Pinecone and WhatsApp values empty to run in mock mode. Never commit `.env` files; only
+`.env.example` is tracked.
 
 | Document | Contents |
 | --- | --- |
@@ -90,15 +152,20 @@ Next.js 16 with Cache Components: pages that read the API stream inside `<Suspen
 
 ```
 user text -> input guardrails (emergency > injection > medical, deterministic, no LLM)
-          -> LLM <-> read-only tools (list_specializations, find_doctors, get_available_slots, propose_booking)
+          -> LLM <-> read-only tools (list_specializations, find_doctors, get_available_slots, next_available_dates, propose_booking, clinic_info)
           -> output guard (prompt-leak canary, links, dosage-like text) -> reply (+ signed booking proposal)
 ```
 
 - **Mock by default.** With no `GROQ_API_KEY` + `GROQ_MODEL` (or `XAI_API_KEY` + `XAI_MODEL`) the deterministic `MockLLM` runs (same tool protocol).
-- **Live Groq (preferred) or Grok via LangChain.** Set `GROQ_API_KEY` and `GROQ_MODEL` (e.g. `openai/gpt-oss-120b`) in `backend/.env`; `GroqLLM` uses Groq's OpenAI-compatible endpoint through `langchain-openai`. Groq wins when both providers are configured.
-- **Grok via LangChain (alternative).** Set `XAI_API_KEY` and `XAI_MODEL` (e.g. a current Grok model name from your xAI console) in `backend/.env`; `GrokLLM` uses `langchain-xai` (`ChatXAI`). It is tested with a fake chat model only and has not yet been run against the real API; `/health/ready` shows `llm: live` once both are set.
-  `/health/ready` reports `llm: mock|live`. The Grok adapter (`app/ai/llm.py`) is unit-tested against a fake transport only
-  and has **not** been run against the real xAI API yet.
+- **Live Groq (preferred) or Grok via LangChain.** Set `GROQ_API_KEY` and `GROQ_MODEL` (e.g. `openai/gpt-oss-120b`) in `backend/.env`;
+  `GroqLLM` uses Groq's OpenAI-compatible endpoint through `langchain-openai` and has been exercised against the real API.
+  `XAI_API_KEY` + `XAI_MODEL` select Grok (`langchain-xai`) instead; it is tested with a fake chat model only. Groq wins when both
+  are set. `/health/ready` reports `llm: mock|live`.
+- **Reliable availability.** Dates, weekdays and times are formatted by the server (the model never computes them). When a date has
+  no open times the tool returns the reason (past date, beyond the booking window, not a working day, leave, fully booked), the
+  nearest bookable dates on both sides inside the window, and colleagues in the same specialty; `next_available_dates` answers
+  "when is she free?". The times a patient was last shown travel back as validated context and appear as tappable buttons, and a
+  plain pick such as "10:30 AM" prepares the booking directly without calling the model.
 - **The model cannot book.** `propose_booking` only returns a signed, 10-minute proposal. The UI posts it with the patient's own
   name/phone to `/chat/confirm`, which calls the normal booking service (idempotent per proposal).
 - **PII never reaches the model.** Phones/emails in chat text are masked before the LLM call; booking details go through the confirm form.
