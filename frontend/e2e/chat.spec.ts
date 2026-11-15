@@ -13,7 +13,7 @@ test("the assistant lists specialties from the real catalogue", async ({ page })
 test("emergencies get the 112 message and are highlighted", async ({ page }) => {
   await page.getByLabel("Your message").fill("I have severe chest pain");
   await page.getByRole("button", { name: "Send" }).click();
-  await expect(page.getByRole("dialog").locator("p.text-danger").last()).toContainText("112");
+  await expect(page.getByRole("dialog").locator('[class*="text-danger"]').last()).toContainText("112");
 });
 
 test("medical advice is declined and prompt injection never leaks the prompt", async ({ page }) => {

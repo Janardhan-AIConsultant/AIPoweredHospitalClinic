@@ -18,8 +18,23 @@ def test_pyproject_dependencies_match_requirements_txt():
 
 
 def test_every_runtime_import_is_declared():
-    declared = {d.split("[")[0].split(">")[0].split("<")[0].split("=")[0].strip().lower().replace("_", "-")
-                for d in _requirements()}
-    for needed in ("fastapi", "uvicorn", "pydantic", "sqlalchemy", "asyncpg", "alembic", "cryptography",
-                   "argon2-cffi", "pyjwt", "httpx", "langchain-core", "langchain-openai", "pinecone"):
+    declared = {
+        d.split("[")[0].split(">")[0].split("<")[0].split("=")[0].strip().lower().replace("_", "-")
+        for d in _requirements()
+    }
+    for needed in (
+        "fastapi",
+        "uvicorn",
+        "pydantic",
+        "sqlalchemy",
+        "asyncpg",
+        "alembic",
+        "cryptography",
+        "argon2-cffi",
+        "pyjwt",
+        "httpx",
+        "langchain-core",
+        "langchain-openai",
+        "pinecone",
+    ):
         assert needed in declared, needed

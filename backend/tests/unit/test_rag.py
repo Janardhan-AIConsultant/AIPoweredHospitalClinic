@@ -100,7 +100,9 @@ class FakeIndex:
 
     def query(self, vector, top_k, namespace, include_metadata):
         assert include_metadata and namespace == "ns"
-        return {"matches": [{"id": i, "score": 0.75, "metadata": v["metadata"]} for i, v in list(self.rows.items())[:top_k]]}
+        return {
+            "matches": [{"id": i, "score": 0.75, "metadata": v["metadata"]} for i, v in list(self.rows.items())[:top_k]]
+        }
 
     def describe_index_stats(self):
         return {"namespaces": {"ns": {"vector_count": len(self.rows)}} if self.rows else {}}

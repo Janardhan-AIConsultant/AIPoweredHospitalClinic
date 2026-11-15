@@ -315,7 +315,9 @@ async def test_simultaneous_bookings_for_one_date_get_distinct_consecutive_numbe
         async with maker() as s:
             doctor = doctor_ids[i % len(doctor_ids)]
             start = time(9) if i < len(doctor_ids) else time(9, 30)
-            return (await make_service(s).book(cmd(doctor, start=start, phone=f"98765433{i:02d}"))).appointment_reference
+            return (
+                await make_service(s).book(cmd(doctor, start=start, phone=f"98765433{i:02d}"))
+            ).appointment_reference
 
     results = await asyncio.gather(*(book(i) for i in range(8)), return_exceptions=True)
     refs = sorted(r for r in results if isinstance(r, str))
