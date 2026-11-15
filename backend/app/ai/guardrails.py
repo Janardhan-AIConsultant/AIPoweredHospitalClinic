@@ -78,7 +78,7 @@ MEDICAL_REPLY = (
 )
 
 INJECTION_REPLY = (
-    "I can only help with finding doctors, checking appointment times and booking at Bindu AI Clinic. "
+    "I can only help with finding doctors, checking appointment times and booking at Bindu Clinic. "
     "What would you like to do?"
 )
 

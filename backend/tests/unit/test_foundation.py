@@ -11,6 +11,7 @@ from app.core.logging import JsonFormatter
 from app.main import create_app
 from app.utils.phone import normalize_phone
 from app.utils.pii import mask_phone, mask_text, redact_mapping
+from app.core.config import get_settings
 from app.utils.timezone import to_clinic, to_utc
 
 
@@ -127,7 +128,10 @@ def test_unhandled_error_hides_details():
 
 
 def test_readiness_without_database_reports_not_configured():
-    body = make_client().get("/health/ready").json()
+    # Isolate from any local backend/.env: the readiness route resolves settings via get_settings().
+    app = create_app(Settings(_env_file=None, app_env="test"))
+    app.dependency_overrides[get_settings] = lambda: Settings(_env_file=None, app_env="test")
+    body = TestClient(app).get("/health/ready").json()
     assert body["database"] == "not_configured" and body["status"] == "ok"
 
 

@@ -11,11 +11,11 @@ const geistSans = Geist({
 
 export const metadata: Metadata = {
   title: {
-    default: "Bindu AI Clinic — Book a doctor appointment online",
-    template: "%s · Bindu AI Clinic",
+    default: "Bindu Clinic — Book a doctor appointment online",
+    template: "%s · Bindu Clinic",
   },
   description:
-    "Find a doctor and book an appointment at Bindu AI Clinic in a few taps. No account needed.",
+    "Find a doctor and book an appointment at Bindu Clinic in a few taps. No account needed.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

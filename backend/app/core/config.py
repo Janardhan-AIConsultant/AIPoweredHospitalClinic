@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore", case_sensitive=False)
 
     # --- General -----------------------------------------------------
-    app_name: str = "Bindu AI Clinic"
+    app_name: str = "Bindu Clinic"
     app_env: Environment = "local"
     log_level: str = "INFO"
     clinic_timezone: str = "Asia/Kolkata"

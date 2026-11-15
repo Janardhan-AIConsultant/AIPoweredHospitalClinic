@@ -1,4 +1,4 @@
-# Bindu AI Clinic — Hospital & Appointment Platform
+# Bindu Clinic — Hospital & Appointment Platform
 
 AI-assisted clinic website: doctor discovery, real-time availability, guest booking,
 Grok-powered appointment chatbot (backend-controlled tools), WhatsApp confirmations

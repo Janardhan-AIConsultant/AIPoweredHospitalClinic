@@ -89,7 +89,7 @@ DEMO_DOCTORS: tuple[DemoDoctor, ...] = (
 )
 
 DEFAULT_SETTINGS: dict[str, tuple[object, str]] = {
-    "clinic_name": ("Bindu AI Clinic", "Display name"),
+    "clinic_name": ("Bindu Clinic", "Display name"),
     "timezone": ("Asia/Kolkata", "Clinic timezone (IANA)"),
     "default_slot_minutes": (30, "Default appointment duration"),
     "booking_horizon_days": (30, "How far ahead patients can book"),

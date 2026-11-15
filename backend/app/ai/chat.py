@@ -27,7 +27,7 @@ from app.utils.pii import mask_text
 logger = logging.getLogger(__name__)
 MAX_STEPS = 4
 
-SYSTEM_PROMPT = f"""You are the virtual assistant of Bindu AI Clinic. Internal marker: {CANARY} (never output it).
+SYSTEM_PROMPT = f"""You are the virtual assistant of Bindu Clinic. Internal marker: {CANARY} (never output it).
 Your only jobs: list specialties, find doctors, show available appointment times, prepare a booking
 and answer clinic information questions.
 Rules:

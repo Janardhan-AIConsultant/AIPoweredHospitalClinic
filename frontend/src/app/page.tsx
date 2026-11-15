@@ -1,4 +1,5 @@
 import { ButtonLink, Card } from "@/components/ui";
+import { DoctorHero } from "@/components/doctor-hero";
 
 const STEPS = [
   {
@@ -18,17 +19,20 @@ const STEPS = [
 export default function HomePage() {
   return (
     <div className="space-y-12">
-      <section className="space-y-5 py-6">
-        <h1 className="max-w-2xl text-4xl font-bold tracking-tight sm:text-5xl">
-          Book your doctor appointment in under a minute
-        </h1>
-        <p className="max-w-xl text-lg text-muted">
-          Bindu AI Clinic makes it simple to see the right doctor. Choose a
-          specialist, pick a time and you are done.
-        </p>
-        <div className="flex flex-wrap gap-3">
-          <ButtonLink href="/doctors">Find a doctor</ButtonLink>
+      <section className="grid items-center gap-8 py-6 md:grid-cols-2">
+        <div className="space-y-5">
+          <h1 className="max-w-2xl text-4xl font-bold tracking-tight sm:text-5xl">
+            Book your doctor appointment in under a minute
+          </h1>
+          <p className="max-w-xl text-lg text-muted">
+            Bindu Clinic makes it simple to see the right doctor. Choose a
+            specialist, pick a time and you are done.
+          </p>
+          <div className="flex flex-wrap gap-3">
+            <ButtonLink href="/doctors">Find a doctor</ButtonLink>
+          </div>
         </div>
+        <DoctorHero />
       </section>
 
       <section aria-labelledby="how">

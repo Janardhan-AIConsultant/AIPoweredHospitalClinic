@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-export const CLINIC_NAME = "Bindu AI Clinic";
+export const CLINIC_NAME = "Bindu Clinic";
 
 export function SiteHeader() {
   return (

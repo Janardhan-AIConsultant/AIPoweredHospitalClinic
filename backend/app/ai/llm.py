@@ -203,7 +203,7 @@ class MockLLM:
                 "Try: “Which specialties do you have?” or “Show slots for Dr. Anil tomorrow”."
             )
         return LLMResponse(
-            "I can help with finding a doctor, checking appointment times and booking at Bindu AI Clinic. "
+            "I can help with finding a doctor, checking appointment times and booking at Bindu Clinic. "
             "What would you like to do?"
         )
 
