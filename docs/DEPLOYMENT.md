@@ -21,7 +21,7 @@ Two independent Vercel projects, each with its own **Root Directory** (`backend`
 2. **Vercel**: create two projects from the same repository.
    - `api`: Root Directory `backend`. Framework preset: FastAPI/Other. Python 3.12 is selected by `backend/.python-version`.
    - `web`: Root Directory `frontend`, Framework: Next.js.
-   - Both `vercel.json` files set `git.deploymentEnabled=false`: deployments come from the *Deploy* workflow so that migrations run first. Remove that line if you prefer Vercel's own Git integration (then migrate manually before merging).
+   - Both projects are connected to the GitHub repository (Settings → Git) with **Root Directory** `backend` / `frontend` and production branch `main`. Each `vercel.json` has an `ignoreCommand` that skips every non-production build, so only pushes to `main` deploy; pull requests and other branches are built by CI only (previews would need their own environment variables).
    **Python dependencies:** Vercel installs the API's packages from `backend/pyproject.toml` (it prefers it over
    `requirements.txt`; with a `pyproject.toml` that lacks a dependency list the function starts with nothing installed and
    fails with `No module named 'fastapi'`). Keep the two lists identical; `tests/unit/test_dependencies.py` enforces it.
@@ -57,7 +57,9 @@ Two independent Vercel projects, each with its own **Root Directory** (`backend`
 
 ## Release flow
 
-`push to main` → **CI** (lint, types, unit + integration tests on PostgreSQL, migration drift/reversibility check, dependency audit, frontend build, Playwright in both browser modes) → **Deploy** (manual approval if configured) → `alembic upgrade head` against Neon → deploy API → deploy web → smoke test (`/health/ready` reports `database: ok`, `/doctors` renders).
+`merge to main` → **CI** runs (lint, types, unit + integration tests on PostgreSQL, migration drift/reversibility check, dependency audit, frontend build, Playwright in both browser modes) and, in parallel, **Vercel builds and deploys both projects to production**. Vercel does not wait for CI, so merge only pull requests whose checks are green.
+
+**Database migrations are not run by the deployment.** Before merging a pull request that adds a migration, apply it to Neon with the direct (unpooled) URL (`cd backend && MIGRATION_DATABASE_URL=<unpooled url> alembic upgrade head`) or run the manual **Deploy** workflow from the Actions tab (it migrates, deploys and smoke-tests in order; needs the `VERCEL_TOKEN` secret).
 
 **Migration policy:** the previous API version keeps serving while a migration runs, so every migration must be backward compatible: add columns/tables first, deploy code that uses them, remove old ones in a later release.
 
