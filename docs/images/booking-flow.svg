@@ -1,0 +1,135 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1170" width="1200" height="1170" role="img" aria-labelledby="t d">
+<title id="t">How a booking flows through Bindu Clinic</title>
+<desc id="d">Five steps: find or ask, check availability, choose a time, confirm and book, then after booking.</desc>
+<defs><filter id="sh" x="-5%" y="-5%" width="110%" height="115%"><feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#0f172a" flood-opacity="0.10"/></filter><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#0f766e"/></marker><linearGradient id="hd" x1="0" x2="1"><stop offset="0" stop-color="#0f766e"/><stop offset="1" stop-color="#115e59"/></linearGradient></defs>
+<rect width="1200" height="1170" fill="#f8fafb"/>
+<rect x="0" y="0" width="1200" height="96" fill="url(#hd)"/>
+<text x="40" y="45" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="30" font-weight="800" fill="#fff">Bindu Clinic: how a booking flows</text>
+<text x="40" y="74" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="15.5" fill="#ccfbf1">From "I need a doctor" to a confirmed appointment, on the website or through Mitra, the chat assistant</text>
+<rect x="40" y="150" width="540" height="100" rx="14" fill="#e6f4f2" stroke="#0f766e" stroke-width="1.6" filter="url(#sh)"/>
+<text x="58" y="181" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="17" font-weight="700" fill="#0b4f4a">Browse the website</text>
+<text x="58" y="208" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="400" fill="#334155">Pick a doctor by specialty, then a date, then a time.</text>
+<text x="58" y="229" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="400" fill="#334155">No account or password needed.</text>
+<rect x="56" y="138" width="138.79999999999998" height="24" rx="12" fill="#0f766e"/>
+<text x="125.39999999999999" y="155" text-anchor="middle" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="700" fill="#fff" letter-spacing="0.6">1  FIND OR ASK</text>
+<rect x="620" y="150" width="540" height="100" rx="14" fill="#e6f4f2" stroke="#0f766e" stroke-width="1.6" filter="url(#sh)"/>
+<text x="638" y="181" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="17" font-weight="700" fill="#0b4f4a">Ask Mitra in plain words</text>
+<text x="638" y="208" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="400" fill="#334155">“I need a pediatrician”  ·  “Book Dr. Anil tomorrow”</text>
+<text x="638" y="229" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="400" fill="#334155">Works in a small chat window on every page.</text>
+<path d="M310,250 V298" fill="none" stroke="#0f766e" stroke-width="2.4" marker-end="url(#ah)" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M890,250 V298" fill="none" stroke="#0f766e" stroke-width="2.4" marker-end="url(#ah)" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="40" y="300" width="1120" height="120" rx="14" fill="#dbeafe" stroke="#1d4ed8" stroke-width="1.6" filter="url(#sh)"/>
+<text x="58" y="331" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="16" font-weight="700" fill="#1e3a8a">Availability engine  ·  one tested function used by both the screens and the booking itself</text>
+<text x="58" y="358" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="400" fill="#334155">Doctor's working days and breaks  ·  leave  ·  existing bookings  ·  1 hour minimum notice  ·  30-day booking window.</text>
+<text x="58" y="379" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="400" fill="#334155">A date with no times is never a dead end: it explains why, offers the nearest valid dates and colleagues in the same specialty.</text>
+<text x="58" y="400" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="400" fill="#334155">The website and Mitra ask the same engine, so they can never disagree about what is free.</text>
+<rect x="56" y="288" width="196.2" height="24" rx="12" fill="#0f766e"/>
+<text x="154.1" y="305" text-anchor="middle" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="700" fill="#fff" letter-spacing="0.6">2  CHECK AVAILABILITY</text>
+<path d="M310,420 V468" fill="none" stroke="#0f766e" stroke-width="2.4" marker-end="url(#ah)" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M890,420 V468" fill="none" stroke="#0f766e" stroke-width="2.4" marker-end="url(#ah)" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="40" y="470" width="540" height="190" rx="14" fill="#e6f4f2" stroke="#0f766e" stroke-width="1.6" filter="url(#sh)"/>
+<text x="58" y="501" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="17" font-weight="700" fill="#0b4f4a">Website: choose a time</text>
+<text x="58" y="528" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="400" fill="#334155">Date strip shows the next bookable days.</text>
+<text x="58" y="549" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="400" fill="#334155">Time buttons show only slots that are really free.</text>
+<text x="58" y="570" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="400" fill="#334155">Days the doctor does not work are not offered.</text>
+<text x="58" y="591" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="400" fill="#334155">Choosing a time opens the details form.</text>
+<text x="58" y="612" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="400" fill="#334155">Everything is checked again on the server at booking.</text>
+<rect x="56" y="458" width="155.2" height="24" rx="12" fill="#0f766e"/>
+<text x="133.6" y="475" text-anchor="middle" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="700" fill="#fff" letter-spacing="0.6">3  CHOOSE A TIME</text>
+<rect x="620" y="470" width="540" height="190" rx="14" fill="#fef3c7" stroke="#b45309" stroke-width="1.6" filter="url(#sh)"/>
+<text x="638" y="501" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="17" font-weight="700" fill="#78350f">Mitra: four safety steps</text>
+<rect x="636" y="512" width="121" height="86" rx="10" fill="#fff" stroke="#b45309" stroke-width="1.2"/>
+<text x="646" y="533" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="700" fill="#78350f">1  Guardrails</text>
+<text x="646" y="552" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12" fill="#334155">Emergency,</text>
+<text x="646" y="568" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12" fill="#334155">prompt injection,</text>
+<text x="646" y="584" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12" fill="#334155">medical advice</text>
+<path d="M758,555 h5" stroke="#b45309" stroke-width="2.2" marker-end="url(#ah)"/>
+<rect x="765" y="512" width="121" height="86" rx="10" fill="#fff" stroke="#b45309" stroke-width="1.2"/>
+<text x="775" y="533" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="700" fill="#78350f">2  LLM (Groq)</text>
+<text x="775" y="552" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12" fill="#334155">Decides which</text>
+<text x="775" y="568" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12" fill="#334155">tool to call</text>
+<path d="M887,555 h5" stroke="#b45309" stroke-width="2.2" marker-end="url(#ah)"/>
+<rect x="894" y="512" width="121" height="86" rx="10" fill="#fff" stroke="#b45309" stroke-width="1.2"/>
+<text x="904" y="533" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="700" fill="#78350f">3  Read-only tools</text>
+<text x="904" y="552" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12" fill="#334155">Doctors, slots,</text>
+<text x="904" y="568" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12" fill="#334155">clinic info (RAG)</text>
+<path d="M1016,555 h5" stroke="#b45309" stroke-width="2.2" marker-end="url(#ah)"/>
+<rect x="1023" y="512" width="121" height="86" rx="10" fill="#fff" stroke="#b45309" stroke-width="1.2"/>
+<text x="1033" y="533" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="700" fill="#78350f">4  Output guard</text>
+<text x="1033" y="552" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12" fill="#334155">No links, dosage</text>
+<text x="1033" y="568" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12" fill="#334155">or prompt leaks</text>
+<text x="638" y="622" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13" fill="#78350f">Dates and times are formatted by the server. No names, phones or emails</text>
+<text x="638" y="641" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13" fill="#78350f">reach the model. It shows tappable time buttons, and it can only propose a booking.</text>
+<path d="M310,660 V690 H140" fill="none" stroke="#0f766e" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M890,660 V690 H310" fill="none" stroke="#0f766e" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M140,690 V718" fill="none" stroke="#0f766e" stroke-width="2.4" marker-end="url(#ah)" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="40" y="720" width="200" height="170" rx="14" fill="#e6f4f2" stroke="#0f766e" stroke-width="1.6" filter="url(#sh)"/>
+<text x="58" y="751" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="17" font-weight="700" fill="#0b4f4a">Pick a time</text>
+<text x="58" y="778" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="400" fill="#334155">Tap a time button</text>
+<text x="58" y="799" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="400" fill="#334155">or type it, for</text>
+<text x="58" y="820" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="400" fill="#334155">example “10:30 AM”.</text>
+<rect x="56" y="708" width="179.79999999999998" height="24" rx="12" fill="#0f766e"/>
+<text x="145.89999999999998" y="725" text-anchor="middle" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="700" fill="#fff" letter-spacing="0.6">4  CONFIRM AND BOOK</text>
+<rect x="270" y="720" width="200" height="170" rx="14" fill="#fef3c7" stroke="#b45309" stroke-width="1.6" filter="url(#sh)"/>
+<text x="288" y="751" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="17" font-weight="700" fill="#78350f">Signed proposal</text>
+<text x="288" y="778" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="400" fill="#334155">Valid for 10 minutes.</text>
+<text x="288" y="799" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="400" fill="#334155">The model can only</text>
+<text x="288" y="820" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="400" fill="#334155">propose, it can</text>
+<text x="288" y="841" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="400" fill="#334155">never book.</text>
+<rect x="500" y="720" width="200" height="170" rx="14" fill="#e6f4f2" stroke="#0f766e" stroke-width="1.6" filter="url(#sh)"/>
+<text x="518" y="751" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="17" font-weight="700" fill="#0b4f4a">Your details</text>
+<text x="518" y="778" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="400" fill="#334155">Name and mobile.</text>
+<text x="518" y="799" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="400" fill="#334155">WhatsApp updates:</text>
+<text x="518" y="820" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="400" fill="#334155">Yes or No, asked</text>
+<text x="518" y="841" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="400" fill="#334155">every time. Sent to</text>
+<text x="518" y="862" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="400" fill="#334155">the backend only.</text>
+<rect x="730" y="720" width="200" height="170" rx="14" fill="#dbeafe" stroke="#1d4ed8" stroke-width="1.6" filter="url(#sh)"/>
+<text x="748" y="751" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="17" font-weight="700" fill="#1e3a8a">Booking transaction</text>
+<text x="748" y="778" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="400" fill="#334155">Lock the doctor,</text>
+<text x="748" y="799" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="400" fill="#334155">re-check the slot,</text>
+<text x="748" y="820" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="400" fill="#334155">take the next date</text>
+<text x="748" y="841" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="400" fill="#334155">counter. The database</text>
+<text x="748" y="862" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="400" fill="#334155">blocks any overlap.</text>
+<rect x="960" y="720" width="200" height="170" rx="14" fill="#0f766e" stroke="#0b4f4a" stroke-width="1.6" filter="url(#sh)"/>
+<text x="978" y="751" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="17" font-weight="700" fill="#ffffff">Confirmation card</text>
+<text x="978" y="778" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="400" fill="#ffffff">Your reference:</text>
+<text x="978" y="799" font-family="Consolas, Menlo, monospace" font-size="16.5" font-weight="700" fill="#ffffff">20261212-0001</text>
+<text x="978" y="820" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="400" fill="#ffffff">Doctor, date, time</text>
+<text x="978" y="841" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="400" fill="#ffffff">range, fee, next steps.</text>
+<path d="M242,805 H266" fill="none" stroke="#0f766e" stroke-width="2.4" marker-end="url(#ah)" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M472,805 H496" fill="none" stroke="#0f766e" stroke-width="2.4" marker-end="url(#ah)" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M702,805 H726" fill="none" stroke="#0f766e" stroke-width="2.4" marker-end="url(#ah)" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M932,805 H956" fill="none" stroke="#0f766e" stroke-width="2.4" marker-end="url(#ah)" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M1060,890 V915 H217" fill="none" stroke="#0f766e" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M217,915 V938" fill="none" stroke="#0f766e" stroke-width="2.4" marker-end="url(#ah)" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M600,915 V938" fill="none" stroke="#0f766e" stroke-width="2.4" marker-end="url(#ah)" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M982,915 V938" fill="none" stroke="#0f766e" stroke-width="2.4" marker-end="url(#ah)" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="40" y="940" width="355" height="150" rx="14" fill="#dcfce7" stroke="#15803d" stroke-width="1.6" filter="url(#sh)"/>
+<text x="58" y="971" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="17" font-weight="700" fill="#14532d">WhatsApp (optional)</text>
+<text x="58" y="998" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="400" fill="#334155">Only if you answered Yes: a confirmation now</text>
+<text x="58" y="1019" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="400" fill="#334155">and a reminder 24 hours before. Queued in the</text>
+<text x="58" y="1040" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="400" fill="#334155">same transaction as the booking, so nothing is</text>
+<text x="58" y="1061" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="400" fill="#334155">sent for a booking that did not save.</text>
+<rect x="56" y="928" width="155.2" height="24" rx="12" fill="#0f766e"/>
+<text x="133.6" y="945" text-anchor="middle" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12.5" font-weight="700" fill="#fff" letter-spacing="0.6">5  AFTER BOOKING</text>
+<rect x="422" y="940" width="355" height="150" rx="14" fill="#e6f4f2" stroke="#0f766e" stroke-width="1.6" filter="url(#sh)"/>
+<text x="440" y="971" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="17" font-weight="700" fill="#0b4f4a">Manage your booking</text>
+<text x="440" y="998" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="400" fill="#334155">My appointments: verify your mobile with a</text>
+<text x="440" y="1019" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="400" fill="#334155">WhatsApp code, then view, cancel or</text>
+<text x="440" y="1040" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="400" fill="#334155">reschedule. A rescheduled booking gets a new</text>
+<text x="440" y="1061" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="400" fill="#334155">reference for its new date.</text>
+<rect x="805" y="940" width="355" height="150" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1.6" filter="url(#sh)"/>
+<text x="823" y="971" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="17" font-weight="700" fill="#334155">Staff dashboards</text>
+<text x="823" y="998" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="400" fill="#334155">Admin and doctor roles: appointments, leave</text>
+<text x="823" y="1019" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="400" fill="#334155">and an audit log. Short-lived tokens, and every</text>
+<text x="823" y="1040" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="400" fill="#334155">change is recorded without phone numbers.</text>
+<rect x="40" y="1109" width="18" height="18" rx="5" fill="#e6f4f2" stroke="#0f766e" stroke-width="1.6"/>
+<text x="66" y="1123" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13" fill="#334155">Patient-facing</text>
+<rect x="186.39999999999998" y="1109" width="18" height="18" rx="5" fill="#dbeafe" stroke="#1d4ed8" stroke-width="1.6"/>
+<text x="212.39999999999998" y="1123" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13" fill="#334155">Rules and database</text>
+<rect x="363.19999999999993" y="1109" width="18" height="18" rx="5" fill="#fef3c7" stroke="#b45309" stroke-width="1.6"/>
+<text x="389.19999999999993" y="1123" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13" fill="#334155">AI safety rails</text>
+<rect x="517.1999999999999" y="1109" width="18" height="18" rx="5" fill="#dcfce7" stroke="#15803d" stroke-width="1.6"/>
+<text x="543.1999999999999" y="1123" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13" fill="#334155">WhatsApp</text>
+<text x="1160" y="1123" text-anchor="end" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="13" fill="#64748b">Every integration (AI, retrieval, WhatsApp) has a mock mode, so the app also runs offline.</text>
+</svg>

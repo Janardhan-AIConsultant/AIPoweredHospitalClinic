@@ -1,0 +1,16 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "git": { "deploymentEnabled": false },
+  "functions": {
+    "app/main.py": {
+      "maxDuration": 30,
+      "includeFiles": "knowledge/**"
+    }
+  },
+  "crons": [
+    {
+      "path": "/internal/cron/notifications",
+      "schedule": "0 3 * * *"
+    }
+  ]
+}
