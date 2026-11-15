@@ -116,7 +116,7 @@ jobs:
         run: PGPASSWORD=clinic_dev_only psql -h localhost -U clinic -d clinic -c "CREATE DATABASE clinic_e2e"
       - run: npm run e2e
         working-directory: frontend
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: playwright-${{ matrix.mode }}
