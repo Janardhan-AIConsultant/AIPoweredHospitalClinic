@@ -47,6 +47,54 @@ Design choices worth knowing:
   integrations are live. Settings fail fast in production.
 - **Privacy by design.** Names, phone numbers and emails are encrypted at rest, masked in logs and never sent to the model.
 
+## How a booking flows
+
+![How a booking flows through Bindu Clinic: find or ask, check availability, choose a time, confirm and book, after booking](docs/images/booking-flow.svg)
+
+*Also available as a [PNG](docs/images/booking-flow.png) for slides and documents.*
+
+1. **Find or ask.** The patient browses the website or asks Mitra in plain words.
+2. **Check availability.** Both ask the same tested engine (working days, breaks, leave, existing bookings, minimum notice and the
+   30-day window). An empty date explains why and offers the nearest valid dates and colleagues in the same specialty.
+3. **Choose a time.** The website shows time buttons. Mitra screens the message (emergency, prompt injection, medical advice),
+   lets the model call read-only tools, checks the reply, and shows the offered times as tappable buttons.
+4. **Confirm and book.** The patient picks a time, the backend issues a signed proposal (10 minutes), the patient enters name and
+   mobile and answers the WhatsApp question, and one transaction re-checks the slot, allocates the reference
+   (`<appointment date>-<counter>`, for example `20261212-0001`) and saves the booking. The patient sees a confirmation card.
+5. **After booking.** Optional WhatsApp confirmation and 24-hour reminder, self-service cancel and reschedule after a WhatsApp
+   code, and staff dashboards for admins and doctors.
+
+<details>
+<summary>Sequence of a booking made through Mitra</summary>
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor P as Patient
+    participant UI as Chat window
+    participant API as FastAPI /chat
+    participant LLM as Groq model
+    participant DB as PostgreSQL
+
+    P->>UI: "I need a pediatrician"
+    UI->>API: messages (text only)
+    API->>API: guardrails, mask phones and emails
+    API->>LLM: system prompt + today's date + messages
+    LLM->>API: call find_doctors / get_available_slots
+    API->>DB: read doctors, schedules, bookings
+    API-->>UI: reply + open times (validated "offer")
+    P->>UI: taps "10:30 AM"
+    UI->>API: "Book 10:30 AM" + the offer (doctor and date)
+    API->>DB: re-check the slot
+    API-->>UI: signed proposal (10 min), no model call needed
+    P->>UI: name, mobile, WhatsApp Yes or No
+    UI->>API: POST /chat/confirm (details never go to the model)
+    API->>DB: lock doctor, next date counter, insert, outbox row if Yes
+    API-->>UI: confirmation card, reference 20261212-0001
+```
+
+</details>
+
 ## Status
 
 Working end to end on a developer machine against a Neon database: guest booking, the Mitra assistant on live Groq, Pinecone
