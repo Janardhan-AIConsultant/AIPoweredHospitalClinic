@@ -21,7 +21,7 @@ Two independent Vercel projects, each with its own **Root Directory** (`backend`
 2. **Vercel**: create two projects from the same repository.
    - `api`: Root Directory `backend`. Framework preset: FastAPI/Other. Python 3.12 is selected by `backend/.python-version`.
    - `web`: Root Directory `frontend`, Framework: Next.js.
-   - Both projects are connected to the GitHub repository (Settings → Git) with **Root Directory** `backend` / `frontend` and production branch `main`. Each `vercel.json` has an `ignoreCommand` that skips every non-production build, so only pushes to `main` deploy; pull requests and other branches are built by CI only (previews would need their own environment variables).
+   - Both projects are connected to the GitHub repository (Settings → Git) with **Root Directory** `backend` / `frontend` and production branch `main`. Each `vercel.json` has an `ignoreCommand` that skips every build whose branch is not `main` (`$VERCEL_ENV` is not available at that step, so the rule uses `$VERCEL_GIT_COMMIT_REF`), so only pushes to `main` deploy; pull requests and other branches are built by CI only (previews would need their own environment variables).
    **Python dependencies:** Vercel installs the API's packages from `backend/pyproject.toml` (it prefers it over
    `requirements.txt`; with a `pyproject.toml` that lacks a dependency list the function starts with nothing installed and
    fails with `No module named 'fastapi'`). Keep the two lists identical; `tests/unit/test_dependencies.py` enforces it.
